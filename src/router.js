@@ -4,6 +4,8 @@ import Import from './components/Import.vue'
 import Login from './components/Login.vue'
 import LivreCompte from './components/LivreCompte.vue'
 import Balance from './components/Balance.vue'
+import FinancialDashboard from './components/FinancialDashboard.vue'
+import Rapport from './components/Rapport.vue'
 
 const routes = [
   { path: '/', name: 'Login', component: Login },
@@ -26,6 +28,18 @@ const routes = [
     name: 'Import', 
     component: Import, 
     meta: { requiresAuth: true } 
+  },
+  {
+    path: '/financial-dashboard',
+    name: 'financial-dashboard',
+    component: FinancialDashboard,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/rapports',
+    name: 'Rapport',
+    component: Rapport,
+    meta: { requiresAuth: true }
   }
 ]
 

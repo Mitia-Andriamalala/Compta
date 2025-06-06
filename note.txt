@@ -1,0 +1,53 @@
+dempiere=# SELECT
+idempiere-#     j.DocumentNo AS reference,
+idempiere-#     l.Account_ID,
+idempiere-#     l.AmtSourceDr AS debit,
+idempiere-#     l.AmtSourceCr AS credit,
+idempiere-#     j.DateDoc AS date
+idempiere-# FROM GL_JournalLine l
+idempiere-# JOIN GL_Journal j ON l.GL_Journal_ID = j.GL_Journal_ID
+idempiere-# WHERE j.DateDoc BETWEEN '2025-06-01' AND '2025-06-03'
+idempiere-#   AND j.DocumentNo IN ('REF01', 'REF02', 'REF03', 'REF04')
+idempiere-#   AND l.Account_ID IN (
+idempiere(#       SELECT C_ElementValue_ID
+idempiere(#       FROM C_ElementValue
+idempiere(#       WHERE Value IN ('60700', '44566', '51200', '40110', '41101', '70100', '44571')
+idempiere(#   )
+idempiere-# ORDER BY j.DateDoc, j.DocumentNo, l.Account_ID;
+ reference | account_id |  debit  | credit  |        date
+-----------+------------+---------+---------+---------------------
+ REF01     |    1000039 | 1000000 |       0 | 2025-06-01 00:00:00
+ REF01     |    1000041 |       0 | 6000000 | 2025-06-01 00:00:00
+ REF01     |    1000042 | 5000000 |       0 | 2025-06-01 00:00:00
+ REF02     |    1000037 | 3000000 |       0 | 2025-06-02 00:00:00
+ REF02     |    1000041 |       0 | 3000000 | 2025-06-02 00:00:00
+ REF03     |    1000038 |  240000 |       0 | 2025-06-02 00:00:00
+ REF03     |    1000040 |       0 |   40000 | 2025-06-02 00:00:00
+ REF03     |    1000043 |       0 |  200000 | 2025-06-02 00:00:00
+ REF04     |    1000038 |       0 |  240000 | 2025-06-03 00:00:00
+ REF04     |    1000041 |  240000 |       0 | 2025-06-03 00:00:00
+(10 lignes)
+
+idempiere=# SELECT DocumentNo, DocStatus, Posted
+idempiere-# FROM GL_Journal
+idempiere-# WHERE DocumentNo IN ('REF01', 'REF02', 'REF03', 'REF04');
+ documentno | docstatus | posted
+------------+-----------+--------
+ REF01      | DR        | N
+ REF02      | DR        | N
+ REF03      | DR        | N
+ REF04      | DR        | N
+(4 lignes)
+
+idempiere=# SELECT *
+idempiere-# FROM fact_acct fa
+idempiere-# JOIN gl_journal j ON fa.record_id = j.gl_journal_id
+idempiere-# WHERE j.documentno = 'REF01';
+
+idempiere=# SELECT
+idempiere-#   rl.value AS code,
+idempiere-#   rl.name AS label
+idempiere-# FROM ad_ref_list rl
+idempiere-# JOIN ad_reference r ON rl.ad_reference_id = r.ad_reference_id
+idempiere-# WHERE r.name = 'C_ElementValue AccountType'
+idempiere-# ORDER BY rl.value;

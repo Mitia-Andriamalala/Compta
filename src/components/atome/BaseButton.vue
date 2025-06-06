@@ -57,12 +57,14 @@ function handleClick() {
 
 /* Variant Primary */
 .primary {
-  background-color: var(--primary-color, #4361ee);
-  color: white;
+  background-color: #4361ee !important;
+  color: #ffffff !important;
+  border: none;
 }
 
 .primary:hover {
-  background-color: var(--primary-hover, #3a56d4);
+  background-color: #3a56d4 !important;
+  color: #ffffff !important;
 }
 
 /* Variant Secondary */
