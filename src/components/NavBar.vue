@@ -4,7 +4,7 @@
       <!-- Logo / Nom de l'application -->
       <div class="navbar-brand">
         <div class="logo-wrapper">
-          <i class="fas fa-book-open logo-icon"></i>
+          <div class="logo-icon">📊</div>
           <div class="logo-glow"></div>
         </div>
         <span class="app-name">ComptaVision</span>
@@ -21,7 +21,7 @@
           @click="closeMobileMenu"
         >
           <div class="nav-link-content">
-            <i :class="link.icon"></i>
+            <span class="link-icon">{{ link.icon }}</span>
             <span class="link-text">{{ link.text }}</span>
             <div class="link-underline"></div>
           </div>
@@ -33,24 +33,24 @@
       <div class="navbar-user">
         <div class="user-profile" @click="toggleUserMenu">
           <div class="user-avatar">
-            <i class="fas fa-user-circle user-icon"></i>
+            <span class="user-icon">👤</span>
             <div class="status-indicator"></div>
           </div>
           <span class="username">Admin</span>
-          <i class="fas fa-caret-down dropdown-icon" :class="{ 'rotate': isUserMenuOpen }"></i>
+          <span class="dropdown-icon" :class="{ 'rotate': isUserMenuOpen }">▼</span>
         </div>
         <transition name="user-menu-fade">
           <div class="user-menu" v-if="isUserMenuOpen" v-click-outside="closeUserMenu">
             <router-link to="/profile" class="user-menu-item">
-              <i class="fas fa-user-cog"></i> 
+              <span class="menu-icon">⚙️</span>
               <span>Profil</span>
             </router-link>
             <router-link to="/settings" class="user-menu-item">
-              <i class="fas fa-cog"></i> 
+              <span class="menu-icon">🔧</span>
               <span>Paramètres</span>
             </router-link>
             <div class="user-menu-item logout" @click="logout">
-              <i class="fas fa-sign-out-alt"></i> 
+              <span class="menu-icon">🚪</span>
               <span>Déconnexion</span>
             </div>
           </div>
@@ -78,10 +78,30 @@
           class="mobile-nav-link"
           @click="toggleMobileMenu"
         >
-          <i :class="link.icon"></i>
+          <span class="mobile-icon">{{ link.icon }}</span>
           <span class="link-text">{{ link.text }}</span>
           <span class="notification-badge" v-if="link.notification">{{ link.notification }}</span>
         </router-link>
+        
+        <!-- Menu utilisateur mobile -->
+        <div class="mobile-user-section">
+          <div class="mobile-user-profile">
+            <span class="mobile-user-icon">👤</span>
+            <span class="mobile-username">Admin</span>
+          </div>
+          <router-link to="/profile" class="mobile-user-menu-item" @click="toggleMobileMenu">
+            <span class="menu-icon">⚙️</span>
+            <span>Profil</span>
+          </router-link>
+          <router-link to="/settings" class="mobile-user-menu-item" @click="toggleMobileMenu">
+            <span class="menu-icon">🔧</span>
+            <span>Paramètres</span>
+          </router-link>
+          <div class="mobile-user-menu-item logout" @click="logout">
+            <span class="menu-icon">🚪</span>
+            <span>Déconnexion</span>
+          </div>
+        </div>
       </div>
     </transition>
   </nav>
@@ -94,11 +114,11 @@ export default {
       isMobileMenuOpen: false,
       isUserMenuOpen: false,
       navLinks: [
-        { path: '/', icon: 'fas fa-home', text: 'Accueil', notification: 0 },
-        { path: '/import', icon: 'fas fa-file-upload', text: 'Import CSV', notification: 2 },
-        { path: '/balance', icon: 'fas fa-book', text: 'Livre de compte', notification: 0 },
-        { path: '/financial-dashboard', icon: 'fas fa-chart-line', text: 'Tableau de bord', notification: 0 },
-        { path: '/rapports', icon: 'fas fa-chart-bar', text: 'Rapports', notification: 5 }
+        { path: '/', icon: '🏠', text: 'Accueil', notification: 0 },
+        { path: '/import', icon: '📤', text: 'Import CSV', notification: 2 },
+        { path: '/balance', icon: '📚', text: 'Livre de compte', notification: 0 },
+        { path: '/financial-dashboard', icon: '📈', text: 'Tableau de bord', notification: 0 },
+        { path: '/rapports', icon: '📊', text: 'Rapports', notification: 5 }
       ]
     };
   },
@@ -126,6 +146,8 @@ export default {
     },
     logout() {
       console.log('Déconnexion...');
+      sessionStorage.removeItem('authToken');
+      this.$router.push('/login');
       this.closeUserMenu();
       this.closeMobileMenu();
     }
@@ -149,46 +171,16 @@ export default {
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
-
-:root {
-  --primary-color: #1976D2;
-  --primary-dark: #1565C0;
-  --primary-light: #42A5F5;
-  --success-color: #4CAF50;
-  --background-color: #F8FAFC;
-  --text-color: #1E293B;
-  --text-light: #64748B;
-  --white: #FFFFFF;
-  --error-color: #DC2626;
-  --border-color: #E2E8F0;
-  --hover-bg: rgba(25, 118, 210, 0.08);
-  --gradient-bg: linear-gradient(135deg, #1976D2 0%, #1565C0 100%);
-  --gradient-hover: linear-gradient(135deg, #1565C0 0%, #0D47A1 100%);
-  --notification-color: #059669;
-  --border-radius: 12px;
-  --box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
-  --box-shadow-hover: 0 8px 32px rgba(0, 0, 0, 0.12);
-  --transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-fast: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.navbar,
-.navbar * {
-  box-sizing: border-box;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-}
-
 .navbar {
-  background: var(--white);
-  box-shadow: var(--box-shadow);
+  background: white;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   position: sticky;
   top: 0;
   z-index: 1000;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid #e2e8f0;
   width: 100%;
   min-height: 80px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   animation: slideDown 0.6s ease-out;
 }
 
@@ -214,16 +206,17 @@ export default {
   min-height: 80px;
 }
 
+/* Logo Section - Style cohérent avec les pages */
 .navbar-brand {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1rem;
   font-size: 1.5rem;
   font-weight: 800;
-  color: var(--text-color);
+  color: #1e293b;
   text-decoration: none;
   cursor: pointer;
-  transition: var(--transition);
+  transition: all 0.3s ease;
   flex-shrink: 0;
   min-width: 200px;
 }
@@ -240,68 +233,59 @@ export default {
 }
 
 .logo-icon {
-  font-size: 1.8rem;
-  color: var(--primary-color);
+  width: 3rem;
+  height: 3rem;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: white;
   z-index: 2;
   position: relative;
-  transition: var(--transition);
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
 .navbar-brand:hover .logo-icon {
-  transform: rotate(10deg) scale(1.1);
+  transform: rotate(5deg) scale(1.05);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
 }
 
 .logo-glow {
   position: absolute;
-  width: 40px;
-  height: 40px;
-  background: radial-gradient(circle, rgba(25, 118, 210, 0.3) 0%, transparent 70%);
-  border-radius: 50%;
-  animation: logoGlow 2s ease-in-out infinite alternate;
+  width: 3rem;
+  height: 3rem;
+  background: radial-gradient(circle, rgba(102, 126, 234, 0.2) 0%, transparent 70%);
+  border-radius: 12px;
+  animation: logoGlow 3s ease-in-out infinite alternate;
 }
 
-/* Fallback pour les icônes si Font Awesome ne charge pas */
-.nav-link i::before,
-.user-icon::before,
-.logo-icon::before,
-.mobile-nav-link i::before,
-.user-menu-item i::before,
-.mobile-user-menu-item i::before {
-  font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "Font Awesome 5 Free", "Font Awesome 5 Pro", sans-serif !important;
-  font-weight: 900 !important;
-  font-style: normal !important;
-  font-variant: normal !important;
-  text-transform: none !important;
-  line-height: 1 !important;
-  -webkit-font-smoothing: antialiased !important;
-  -moz-osx-font-smoothing: grayscale !important;
+@keyframes logoGlow {
+  0% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
 }
-
-/* Icônes de fallback en Unicode si Font Awesome ne fonctionne pas */
-.fa-home::before { content: "🏠"; }
-.fa-file-upload::before { content: "📤"; }
-.fa-book::before { content: "📚"; }
-.fa-chart-bar::before { content: "📊"; }
-.fa-book-open::before { content: "📖"; }
-.fa-user-circle::before { content: "👤"; }
-.fa-caret-down::before { content: "▼"; }
-.fa-user-cog::before { content: "⚙️"; }
-.fa-cog::before { content: "⚙️"; }
-.fa-sign-out-alt::before { content: "🚪"; }
-.fa-bars::before { content: "☰"; }
 
 .app-name {
-  letter-spacing: -0.02em;
-  background: var(--gradient-bg);
+  letter-spacing: -0.025em;
+  background: linear-gradient(135deg, #667eea, #764ba2);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   font-weight: 800;
 }
 
+/* Navigation Links */
 .navbar-links {
   display: flex;
-  gap: 2rem;
+  gap: 0.5rem;
   align-items: center;
   flex: 1;
   justify-content: center;
@@ -311,24 +295,25 @@ export default {
 .nav-link {
   position: relative;
   text-decoration: none;
-  transition: var(--transition);
-  border-radius: var(--border-radius);
+  transition: all 0.3s ease;
+  border-radius: 12px;
   overflow: hidden;
 }
 
 .nav-link-content {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
-  color: var(--text-color);
-  padding: 0.75rem 1.25rem;
-  border-radius: var(--border-radius);
-  transition: var(--transition);
+  gap: 0.75rem;
+  color: #64748b;
+  padding: 0.875rem 1.25rem;
+  border-radius: 12px;
+  transition: all 0.3s ease;
   font-weight: 600;
   font-size: 0.875rem;
-  letter-spacing: 0.025em;
   position: relative;
   overflow: hidden;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
 }
 
 .nav-link-content::before {
@@ -338,8 +323,8 @@ export default {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-  transition: var(--transition);
+  background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+  transition: all 0.6s ease;
 }
 
 .nav-link:hover .nav-link-content::before {
@@ -347,18 +332,19 @@ export default {
 }
 
 .nav-link:hover .nav-link-content {
-  background: var(--hover-bg);
-  color: var(--primary-color);
+  background: white;
+  color: #667eea;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.15);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+  border-color: #667eea;
 }
 
-.nav-link i {
-  font-size: 1.1rem;
-  transition: var(--transition);
+.link-icon {
+  font-size: 1.125rem;
+  transition: all 0.3s ease;
 }
 
-.nav-link:hover i {
+.nav-link:hover .link-icon {
   transform: scale(1.1);
 }
 
@@ -368,9 +354,9 @@ export default {
   left: 50%;
   width: 0;
   height: 3px;
-  background: var(--gradient-bg);
+  background: linear-gradient(135deg, #667eea, #764ba2);
   border-radius: 2px;
-  transition: var(--transition);
+  transition: all 0.3s ease;
   transform: translateX(-50%);
 }
 
@@ -379,41 +365,42 @@ export default {
 }
 
 .active .nav-link-content {
-  color: var(--primary-color);
-  background: var(--hover-bg);
+  color: #667eea;
+  background: white;
+  border-color: #667eea;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
 }
 
 .active .link-underline {
   width: 80%;
 }
 
+/* Notification Badge */
 .notification-badge {
   position: absolute;
   top: -6px;
   right: -6px;
-  background: var(--notification-color);
-  color: var(--white);
+  background: #10b981;
+  color: white;
   border-radius: 50%;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.75rem;
   font-weight: 700;
-  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
   animation: notificationPulse 2s infinite;
-  border: 2px solid var(--white);
+  border: 2px solid white;
 }
 
 @keyframes notificationPulse {
   0%, 100% {
     transform: scale(1);
-    box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3);
   }
   50% {
-    transform: scale(1.15);
-    box-shadow: 0 4px 16px rgba(5, 150, 105, 0.5);
+    transform: scale(1.1);
   }
 }
 
@@ -422,6 +409,7 @@ export default {
   right: -2px;
 }
 
+/* User Section */
 .navbar-user {
   position: relative;
   flex-shrink: 0;
@@ -435,12 +423,12 @@ export default {
   align-items: center;
   gap: 0.875rem;
   cursor: pointer;
-  padding: 0.75rem 1.25rem;
-  border-radius: var(--border-radius);
-  transition: var(--transition);
-  background: var(--gradient-bg);
-  color: var(--white);
-  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+  padding: 0.875rem 1.25rem;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
   position: relative;
   overflow: hidden;
 }
@@ -453,7 +441,7 @@ export default {
   width: 100%;
   height: 100%;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: var(--transition);
+  transition: all 0.6s ease;
 }
 
 .user-profile:hover::before {
@@ -461,9 +449,9 @@ export default {
 }
 
 .user-profile:hover {
-  background: var(--gradient-hover);
+  background: linear-gradient(135deg, #5a67d8, #667eea);
   transform: translateY(-2px);
-  box-shadow: var(--box-shadow-hover);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
 }
 
 .user-avatar {
@@ -471,8 +459,8 @@ export default {
 }
 
 .user-icon {
-  font-size: 1.75rem;
-  transition: var(--transition);
+  font-size: 1.5rem;
+  transition: all 0.3s ease;
 }
 
 .user-profile:hover .user-icon {
@@ -481,13 +469,13 @@ export default {
 
 .status-indicator {
   position: absolute;
-  bottom: 2px;
-  right: 2px;
+  bottom: 0;
+  right: 0;
   width: 8px;
   height: 8px;
-  background: var(--success-color);
+  background: #10b981;
   border-radius: 50%;
-  border: 2px solid var(--white);
+  border: 2px solid white;
   animation: statusPulse 2s infinite;
 }
 
@@ -503,24 +491,24 @@ export default {
 .username {
   font-weight: 600;
   font-size: 0.9rem;
-  letter-spacing: 0.025em;
 }
 
 .dropdown-icon {
-  font-size: 0.875rem;
-  transition: var(--transition);
+  font-size: 0.75rem;
+  transition: all 0.3s ease;
 }
 
 .dropdown-icon.rotate {
   transform: rotate(180deg);
 }
 
+/* User Menu */
 .user-menu-fade-enter-active,
 .user-menu-fade-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: all 0.3s ease;
 }
 
-.user-menu-fade-enter,
+.user-menu-fade-enter-from,
 .user-menu-fade-leave-to {
   opacity: 0;
   transform: translateY(-10px);
@@ -531,54 +519,64 @@ export default {
   top: 100%;
   right: 0;
   width: 200px;
-  background: var(--white);
-  border-radius: var(--border-radius);
-  box-shadow: var(--box-shadow);
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
   padding: 0.5rem;
   margin-top: 0.5rem;
   z-index: 1000;
-  border: 1px solid var(--border-color);
+  border: 1px solid #e2e8f0;
+  animation: fadeInDown 0.3s ease-out;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .user-menu-item {
   display: flex;
   align-items: center;
+  gap: 0.75rem;
   padding: 0.75rem 1rem;
-  color: var(--text-color);
+  color: #374151;
   text-decoration: none;
   border-radius: 8px;
-  transition: var(--transition-fast);
+  transition: all 0.2s ease;
   cursor: pointer;
-  position: relative;
-}
-
-.user-menu-item:hover {
-  background-color: var(--hover-bg);
-}
-
-.user-menu-item i {
-  margin-right: 0.75rem;
-  font-size: 1rem;
-  color: var(--text-light);
-  width: 20px;
-}
-
-.user-menu-item span {
-  flex: 1;
   font-weight: 500;
 }
 
+.user-menu-item:hover {
+  background: #f8fafc;
+  color: #667eea;
+}
+
+.menu-icon {
+  font-size: 1rem;
+  width: 1.25rem;
+  text-align: center;
+}
+
 .logout {
-  color: var(--error-color);
-  border-top: 1px solid var(--border-color);
+  color: #ef4444;
+  border-top: 1px solid #f1f5f9;
   margin-top: 0.5rem;
   padding-top: 0.75rem;
 }
 
-.logout i {
-  color: var(--error-color);
+.logout:hover {
+  background: #fef2f2;
+  color: #dc2626;
 }
 
+/* Mobile Menu Button */
 .mobile-menu-button {
   display: none;
   background: none;
@@ -586,12 +584,12 @@ export default {
   cursor: pointer;
   padding: 0.75rem;
   position: relative;
-  transition: var(--transition);
-  border-radius: var(--border-radius);
+  transition: all 0.3s ease;
+  border-radius: 12px;
 }
 
 .mobile-menu-button:hover {
-  background: var(--hover-bg);
+  background: #f8fafc;
 }
 
 .hamburger {
@@ -605,9 +603,9 @@ export default {
 .hamburger span {
   display: block;
   height: 3px;
-  background: var(--text-color);
+  background: #374151;
   border-radius: 2px;
-  transition: var(--transition);
+  transition: all 0.3s ease;
 }
 
 .mobile-menu-button.active .hamburger span:nth-child(1) {
@@ -622,33 +620,34 @@ export default {
   transform: rotate(-45deg) translate(6px, -6px);
 }
 
+/* Mobile Menu */
 .mobile-menu-slide-enter-active,
 .mobile-menu-slide-leave-active {
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.mobile-menu-slide-enter,
+.mobile-menu-slide-enter-from,
 .mobile-menu-slide-leave-to {
   opacity: 0;
   transform: translateY(-20px);
 }
 
 .mobile-menu {
-  background-color: rgba(255, 255, 255, 0.98);
+  background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(20px);
-  box-shadow: var(--box-shadow);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   padding: 1.5rem 0;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid #e2e8f0;
 }
 
 .mobile-nav-link {
   display: flex;
   align-items: center;
-  gap: 1.25rem;
-  padding: 1.25rem 2rem;
-  color: var(--text-color);
+  gap: 1rem;
+  padding: 1rem 2rem;
+  color: #374151;
   text-decoration: none;
-  transition: var(--transition);
+  transition: all 0.3s ease;
   font-size: 1rem;
   font-weight: 500;
   position: relative;
@@ -662,8 +661,8 @@ export default {
   top: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, var(--hover-bg), transparent);
-  transition: var(--transition);
+  background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+  transition: all 0.6s ease;
 }
 
 .mobile-nav-link:hover::before {
@@ -671,29 +670,88 @@ export default {
 }
 
 .mobile-nav-link:hover {
-  background-color: var(--hover-bg);
-  color: var(--primary-color);
+  background: #f8fafc;
+  color: #667eea;
   transform: translateX(8px);
 }
 
-.mobile-nav-link i {
+.mobile-icon {
   width: 1.5rem;
   text-align: center;
-  font-size: 1.1rem;
-  transition: var(--transition);
+  font-size: 1.125rem;
+  transition: all 0.3s ease;
 }
 
-.mobile-nav-link:hover i {
+.mobile-nav-link:hover .mobile-icon {
   transform: scale(1.1);
 }
 
+/* Mobile User Section */
+.mobile-user-section {
+  border-top: 1px solid #e2e8f0;
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
+
+.mobile-user-profile {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  margin: 0 1rem 0.5rem 1rem;
+  border-radius: 12px;
+}
+
+.mobile-user-icon {
+  font-size: 1.5rem;
+}
+
+.mobile-username {
+  font-weight: 600;
+}
+
+.mobile-user-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.875rem 2rem;
+  color: #374151;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.mobile-user-menu-item:hover {
+  background: #f8fafc;
+  color: #667eea;
+  transform: translateX(8px);
+}
+
+.mobile-user-menu-item.logout {
+  color: #ef4444;
+}
+
+.mobile-user-menu-item.logout:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+/* Responsive Design */
 @media (max-width: 992px) {
   .navbar-links {
-    gap: 1.5rem;
+    gap: 0.25rem;
   }
   
   .navbar-container {
     padding: 1rem 1.5rem;
+  }
+  
+  .nav-link-content {
+    padding: 0.75rem 1rem;
+    font-size: 0.8125rem;
   }
 }
 
@@ -715,15 +773,51 @@ export default {
   }
   
   .logo-icon {
-    font-size: 1.5rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    font-size: 1.25rem;
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+@media (max-width: 480px) {
+  .navbar-container {
+    padding: 1rem;
+  }
+  
+  .navbar-brand {
+    font-size: 1.125rem;
+    min-width: auto;
+  }
+  
+  .app-name {
+    display: none;
+  }
+  
+  .logo-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    font-size: 1.125rem;
   }
 }
+
+/* Animations pour l'entrée */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.nav-link {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.nav-link:nth-child(2) { animation-delay: 0.1s; }
+.nav-link:nth-child(3) { animation-delay: 0.2s; }
+.nav-link:nth-child(4) { animation-delay: 0.3s; }
+.nav-link:nth-child(5) { animation-delay: 0.4s; }
 </style>

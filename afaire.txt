@@ -1,0 +1,28 @@
+Bien maintenant les a faire que j`ai deja commencer mais il y a certain point qui marche pas tres bien 
+Jour2
+ExistingApp : Idempiere
+NewApp : une nouvelle application MVC qui doit utiliser une des technologies suivantes:  VueJs ( c`est notre projet compta)
+Lien via API uniquement entre NewApp -> ExistingApp
+1. existingapp
+   1. 
+2. newapp
+   1. Le site sera vu principalement en mode desktop
+   2. login (utiliser login idempiere) 
+   3. Import Fichier CSV
+      1. Données
+         1. compte
+         2. ecriture
+         3. journal
+         4. etc…
+      2. Validation import sur le format de date (erreur si date inexistante)
+   4. Affichage balance
+      1. si on clique sur un compte, on doit avoir le grand livre de compte
+   5. Grand Livre
+      1. mettre un filtre de recherche date (min et max) et libellé référence pièce
+**Import** : préparer l’import sur l’appli newapp (format à envoyer cet après midi)
+FORMAT IMPORT CSV
+Import-dsp3
+Jour 3
+1. newapp
+   1. création d’un page contenant un tableau contenant les colonnes (mois, chiffre d’affaires, charges, résultat net), avec un filtre par année
+   2. une graphe contenant l’évolution de ces 3 indicateurs ( chiffre d’affaires, charges, résultat net)

@@ -82,265 +82,311 @@ async function handleLogin() {
 </script>
 
 <template>
-  <div class="login-container">
-    <!-- Background decorative elements -->
-    <div class="bg-decoration">
-      <div class="circle circle-1"></div>
-      <div class="circle circle-2"></div>
-      <div class="circle circle-3"></div>
-    </div>
-    
-    <div class="login-card">
-      <!-- Header section -->
-      <div class="header-section">
-        <div class="logo-container">
+  <div class="page-container">
+    <!-- Header Section avec même style que les autres pages -->
+    <div class="header-section">
+      <div class="header-content">
+        <div class="logo-section">
           <div class="logo-icon">
-            <i class="fas fa-book-open"></i>
+            📊
+          </div>
+          <div class="brand-info">
+            <h1 class="app-title">ComptaVision</h1>
+            <p class="app-subtitle">Votre solution de gestion comptable</p>
           </div>
         </div>
-        <h1 class="app-title">ComptaVision</h1>
-        <p class="app-subtitle">Connectez-vous à votre espace</p>
+        <div class="welcome-message">
+          <h2 class="welcome-title">Bienvenue</h2>
+          <p class="welcome-subtitle">Connectez-vous pour accéder à votre tableau de bord</p>
+        </div>
       </div>
+    </div>
 
-      <!-- Form section -->
-      <form @submit.prevent="handleLogin" class="login-form">
-        <div class="input-group">
-          <label for="username" class="input-label">
-            <i class="fas fa-user"></i>
-            Nom d'utilisateur
-          </label>
-          <BaseInput
-            id="username"
-            v-model="username"
-            :error="usernameError"
-            placeholder="Entrez votre nom d'utilisateur"
-            class="form-input"
-          />
-        </div>
-
-        <div class="input-group">
-          <label for="password" class="input-label">
-            <i class="fas fa-lock"></i>
-            Mot de passe
-          </label>
-          <BaseInput
-            id="password"
-            type="password"
-            v-model="password"
-            :error="passwordError"
-            placeholder="Entrez votre mot de passe"
-            class="form-input"
-          />
-        </div>
-
-        <BaseButton 
-          variant="primary" 
-          type="submit" 
-          :disabled="isLoading"
-          class="login-button"
-        >
-          <span v-if="!isLoading" class="button-content">
-            <i class="fas fa-sign-in-alt"></i>
-            Se connecter
-          </span>
-          <span v-else class="button-content">
-            <i class="fas fa-spinner fa-spin"></i>
-            Connexion...
-          </span>
-        </BaseButton>
-
-        <!-- Message display -->
-        <Transition name="message">
-          <div v-if="message" :class="['message', { 'message-success': success, 'message-error': !success }]">
-            <i :class="success ? 'fas fa-check-circle' : 'fas fa-exclamation-triangle'"></i>
-            {{ message }}
+    <!-- Main Content -->
+    <div class="main-content">
+      <div class="login-section">
+        <div class="login-card">
+          <!-- Form Header -->
+          <div class="form-header">
+            <div class="form-icon">
+              🔐
+            </div>
+            <h3 class="form-title">Connexion</h3>
+            <p class="form-subtitle">Saisissez vos identifiants pour continuer</p>
           </div>
-        </Transition>
-      </form>
 
-      <!-- Footer -->
-      <div class="footer-section">
-        <div class="divider"></div>
-        <p class="footer-text">
-          <i class="fas fa-shield-alt"></i>
-          Connexion sécurisée
-        </p>
+          <!-- Login Form -->
+          <form @submit.prevent="handleLogin" class="login-form">
+            <div class="input-group">
+              <label for="username" class="input-label">
+                <span class="label-icon">👤</span>
+                Nom d'utilisateur
+              </label>
+              <div class="input-container">
+                <input
+                  :id="id"
+                  v-model="username"
+                  type="text"
+                  placeholder="Entrez votre nom d'utilisateur"
+                  class="custom-input"
+                  :class="{ 'input-error': usernameError }"
+                />
+                <div v-if="usernameError" class="error-message">{{ usernameError }}</div>
+              </div>
+            </div>
+
+            <div class="input-group">
+              <label for="password" class="input-label">
+                <span class="label-icon">🔒</span>
+                Mot de passe
+              </label>
+              <div class="input-container">
+                <input
+                  id="password"
+                  v-model="password"
+                  type="password"
+                  placeholder="Entrez votre mot de passe"
+                  class="custom-input"
+                  :class="{ 'input-error': passwordError }"
+                />
+                <div v-if="passwordError" class="error-message">{{ passwordError }}</div>
+              </div>
+            </div>
+
+            <button 
+              type="submit" 
+              :disabled="isLoading"
+              class="login-button"
+            >
+              <span v-if="!isLoading" class="button-content">
+                <span class="button-icon">🚀</span>
+                Se connecter
+              </span>
+              <span v-else class="button-content">
+                <span class="button-icon spinning">⟳</span>
+                Connexion...
+              </span>
+            </button>
+
+            <!-- Message display -->
+            <Transition name="message">
+              <div v-if="message" :class="['message', { 'message-success': success, 'message-error': !success }]">
+                <span class="message-icon">{{ success ? '✅' : '⚠️' }}</span>
+                {{ message }}
+              </div>
+            </Transition>
+          </form>
+
+          <!-- Security Notice -->
+          <div class="security-notice">
+            <span class="security-icon">🛡️</span>
+            <span class="security-text">Connexion sécurisée SSL</span>
+          </div>
+        </div>
+
+        <!-- Feature Cards -->
+        <div class="features-section">
+          <div class="feature-card">
+            <div class="feature-icon">📈</div>
+            <h4 class="feature-title">Tableaux de bord</h4>
+            <p class="feature-description">Visualisez vos données financières en temps réel</p>
+          </div>
+          
+          <div class="feature-card">
+            <div class="feature-icon">📊</div>
+            <h4 class="feature-title">Gestion des comptes</h4>
+            <p class="feature-description">Organisez et consultez tous vos comptes</p>
+          </div>
+          
+          <div class="feature-card">
+            <div class="feature-icon">📤</div>
+            <h4 class="feature-title">Import/Export</h4>
+            <p class="feature-description">Importez et exportez vos données facilement</p>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
-
-:root {
-  --primary-color: #3b82f6;
-  --primary-dark: #2563eb;
-  --primary-light: #60a5fa;
-  --success-color: #10b981;
-  --error-color: #ef4444;
-  --warning-color: #f59e0b;
-  --background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --card-background: rgba(255, 255, 255, 0.95);
-  --text-primary: #1f2937;
-  --text-secondary: #6b7280;
-  --text-light: #9ca3af;
-  --border-color: #e5e7eb;
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  --border-radius: 0.75rem;
-  --border-radius-lg: 1rem;
-  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-.login-container {
+.page-container {
   min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--background);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  padding: 1rem;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Header Section - Même style que les autres pages */
+.header-section {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 3rem 0 2rem 0;
   position: relative;
   overflow: hidden;
 }
 
-.bg-decoration {
+.header-section::before {
+  content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  pointer-events: none;
-  overflow: hidden;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20"><defs><radialGradient id="a" cx="50%" cy="0%" r="100%"><stop offset="0%" style="stop-color:rgb(255,255,255);stop-opacity:0.1" /><stop offset="100%" style="stop-color:rgb(255,255,255);stop-opacity:0" /></radialGradient></defs><rect width="100" height="20" fill="url(%23a)" /></svg>') repeat-x;
+  opacity: 0.1;
 }
 
-.circle {
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  animation: float 6s ease-in-out infinite;
-}
-
-.circle-1 {
-  width: 200px;
-  height: 200px;
-  top: 10%;
-  left: 10%;
-  animation-delay: 0s;
-}
-
-.circle-2 {
-  width: 150px;
-  height: 150px;
-  top: 60%;
-  right: 20%;
-  animation-delay: 2s;
-}
-
-.circle-3 {
-  width: 100px;
-  height: 100px;
-  bottom: 20%;
-  left: 20%;
-  animation-delay: 4s;
-}
-
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0px) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-20px) rotate(180deg);
-  }
-}
-
-.login-card {
-  background: var(--card-background);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: var(--border-radius-lg);
-  box-shadow: var(--shadow-xl);
-  padding: 2.5rem 2rem;
-  width: 100%;
-  max-width: 420px;
-  position: relative;
-  animation: slideUp 0.8s ease-out;
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.header-section {
-  text-align: center;
-  margin-bottom: 2.5rem;
-}
-
-.logo-container {
-  display: inline-flex;
+.header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  width: 4rem;
-  height: 4rem;
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
-  border-radius: 50%;
-  margin-bottom: 1rem;
-  box-shadow: var(--shadow-md);
-  transition: var(--transition);
+  position: relative;
+  z-index: 1;
 }
 
-.logo-container:hover {
-  transform: scale(1.05);
-  box-shadow: var(--shadow-lg);
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
 }
 
 .logo-icon {
-  color: white;
-  font-size: 1.5rem;
+  width: 4rem;
+  height: 4rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.logo-icon:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.brand-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .app-title {
-  font-size: 2rem;
+  font-size: 2.5rem;
   font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 0.5rem;
+  margin: 0;
   letter-spacing: -0.025em;
 }
 
 .app-subtitle {
-  color: var(--text-secondary);
-  font-size: 0.95rem;
+  font-size: 1.1rem;
+  opacity: 0.9;
+  margin: 0;
+  font-weight: 300;
+}
+
+.welcome-message {
+  text-align: right;
+}
+
+.welcome-title {
+  font-size: 2rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+}
+
+.welcome-subtitle {
+  font-size: 1rem;
+  opacity: 0.9;
+  margin: 0;
   font-weight: 400;
+}
+
+/* Main Content */
+.main-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  position: relative;
+  top: -1rem;
+}
+
+.login-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3rem;
+  align-items: start;
+}
+
+/* Login Card */
+.login-card {
+  background: white;
+  border-radius: 16px;
+  padding: 2.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s ease;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.login-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+}
+
+.form-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.form-icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  margin: 0 auto 1rem;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.form-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 0.5rem 0;
+}
+
+.form-subtitle {
+  color: #64748b;
+  font-size: 0.9rem;
+  margin: 0;
 }
 
 .login-form {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  width: 100%;
+  max-width: 100%;
 }
 
 .input-group {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  width: 100%;
 }
 
 .input-label {
@@ -348,41 +394,85 @@ async function handleLogin() {
   align-items: center;
   gap: 0.5rem;
   font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--text-primary);
+  font-weight: 600;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
 }
 
-.input-label i {
-  color: var(--text-secondary);
-  width: 1rem;
+.label-icon {
+  font-size: 1rem;
 }
 
-.form-input {
-  transition: var(--transition);
+.input-container {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.custom-input {
+  width: 100%;
+  padding: 1rem 1.25rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 1rem;
+  background: #f8fafc;
+  transition: all 0.3s ease;
+  outline: none;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.custom-input:focus {
+  border-color: #667eea;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.custom-input.input-error {
+  border-color: #ef4444;
+  background: #fef2f2;
+}
+
+.custom-input.input-error:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.error-message {
+  color: #ef4444;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.error-message::before {
+  content: '⚠️';
+  font-size: 0.75rem;
 }
 
 .login-button {
-  margin-top: 0.5rem;
-  height: 3rem;
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+  margin-top: 1rem;
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, #667eea, #764ba2);
   border: none;
-  border-radius: var(--border-radius);
+  border-radius: 12px;
   color: white;
   font-weight: 600;
   font-size: 1rem;
   cursor: pointer;
-  transition: var(--transition);
-  position: relative;
-  overflow: hidden;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .login-button:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: var(--shadow-lg);
-}
-
-.login-button:active {
-  transform: translateY(0);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
 }
 
 .login-button:disabled {
@@ -395,50 +485,114 @@ async function handleLogin() {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
+}
+
+.button-icon {
+  font-size: 1rem;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .message {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  border-radius: var(--border-radius);
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
   font-size: 0.875rem;
   font-weight: 500;
-  margin-top: 0.5rem;
+  margin-top: 1rem;
 }
 
 .message-success {
   background: rgba(16, 185, 129, 0.1);
-  color: var(--success-color);
+  color: #059669;
   border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
 .message-error {
   background: rgba(239, 68, 68, 0.1);
-  color: var(--error-color);
+  color: #dc2626;
   border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
-.footer-section {
-  margin-top: 2rem;
-  text-align: center;
+.message-icon {
+  font-size: 1rem;
 }
 
-.divider {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--border-color), transparent);
-  margin-bottom: 1rem;
-}
-
-.footer-text {
+.security-notice {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  color: var(--text-light);
-  font-size: 0.8rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #f1f5f9;
+  color: #64748b;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.security-icon {
+  font-size: 1rem;
+}
+
+/* Features Section */
+.features-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.feature-card {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.feature-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.feature-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.feature-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 0.5rem 0;
+}
+
+.feature-description {
+  color: #64748b;
+  font-size: 0.875rem;
+  margin: 0;
+  line-height: 1.5;
 }
 
 /* Transitions */
@@ -451,41 +605,152 @@ async function handleLogin() {
   transform: translateY(-10px);
 }
 
-/* Responsive */
-@media (max-width: 480px) {
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .header-content {
+    flex-direction: column;
+    gap: 2rem;
+    text-align: center;
+  }
+  
+  .welcome-message {
+    text-align: center;
+  }
+  
+  .login-section {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+  
+  .features-section {
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 1rem;
+  }
+  
+  .feature-card {
+    min-width: 280px;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    padding: 1rem;
+  }
+  
+  .header-content {
+    padding: 0 1rem;
+  }
+  
+  .app-title {
+    font-size: 2rem;
+  }
+  
+  .welcome-title {
+    font-size: 1.5rem;
+  }
+  
   .login-card {
     padding: 2rem 1.5rem;
-    margin: 1rem;
+    margin: 0;
+    width: 100%;
   }
+  
+  .login-form {
+    width: 100%;
+  }
+  
+  .input-group {
+    width: 100%;
+  }
+  
+  .custom-input {
+    width: 100%;
+    min-width: 0;
+  }
+  
+  .features-section {
+    flex-direction: column;
+  }
+  
+  .feature-card {
+    min-width: auto;
+    width: 100%;
+  }
+}
 
+@media (max-width: 480px) {
+  .logo-section {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .brand-info {
+    text-align: center;
+  }
+  
   .app-title {
     font-size: 1.75rem;
   }
-
-  .logo-container {
-    width: 3.5rem;
-    height: 3.5rem;
-  }
-
-  .logo-icon {
+  
+  .welcome-title {
     font-size: 1.25rem;
   }
-}
-
-@media (max-width: 360px) {
+  
   .login-card {
     padding: 1.5rem 1rem;
+    margin: 0;
+    width: 100%;
+  }
+  
+  .login-form {
+    width: 100%;
+  }
+  
+  .input-group {
+    width: 100%;
+  }
+  
+  .custom-input {
+    width: 100%;
+    min-width: 0;
+    padding: 0.875rem 1rem;
+  }
+  
+  .login-button {
+    width: 100%;
+    padding: 0.875rem 1.5rem;
+  }
+  
+  .logo-icon {
+    width: 3rem;
+    height: 3rem;
+    font-size: 1.5rem;
   }
 }
 
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --card-background: rgba(17, 24, 39, 0.95);
-    --text-primary: #f9fafb;
-    --text-secondary: #d1d5db;
-    --text-light: #9ca3af;
-    --border-color: #374151;
+/* Animation d'entrée */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
   }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.login-card,
+.feature-card {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.feature-card:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.feature-card:nth-child(3) {
+  animation-delay: 0.2s;
 }
 </style>

@@ -1,148 +1,143 @@
 <template>
-  <div class="rapport-container">
+  <div class="page-container">
     <!-- Header Section -->
     <div class="header-section">
       <div class="header-content">
-        <h1 class="page-title">
-          <i class="icon-accounts"></i>
-          Liste des Comptes
-        </h1>
-        <p class="page-subtitle">Gérez et consultez vos comptes comptables</p>
-      </div>
-      <div class="header-stats">
-        <div class="stat-card">
-          <div class="stat-number">{{ comptes.length }}</div>
-          <div class="stat-label">Total Comptes</div>
+        <div class="title-section">
+          <h1 class="page-title">
+            <span class="title-icon">📊</span>
+            Liste des Comptes
+          </h1>
+          <p class="page-subtitle">Gérez et consultez tous vos comptes comptables</p>
         </div>
-        <div class="stat-card">
-          <div class="stat-number">{{ comptesFiltres.length }}</div>
-          <div class="stat-label">Affichés</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Filters Section -->
-    <div class="filters-section">
-      <div class="filter-group">
-        <label for="type-select" class="filter-label">
-          <i class="icon-filter"></i>
-          Filtrer par type
-        </label>
-        <div class="select-wrapper">
-          <select v-model="selectedType" id="type-select" class="filter-select">
-            <option value="">Tous les types</option>
-            <option v-for="type in typesDisponibles" :key="type.id" :value="type.id">
-              {{ type.label }}
-            </option>
-          </select>
-          <i class="select-arrow"></i>
+        <div class="header-stats">
+          <div class="stat-card">
+            <div class="stat-icon">📋</div>
+            <div class="stat-content">
+              <div class="stat-number">{{ comptes.length }}</div>
+              <div class="stat-label">Total Comptes</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🔍</div>
+            <div class="stat-content">
+              <div class="stat-number">{{ comptesFiltres.length }}</div>
+              <div class="stat-label">Affichés</div>
+            </div>
+          </div>
         </div>
       </div>
-
-      <div class="filter-group">
-        <label for="search-input" class="filter-label">
-          <i class="icon-search"></i>
-          Rechercher
-        </label>
-        <input 
-          v-model="searchTerm" 
-          id="search-input"
-          type="text" 
-          placeholder="Nom ou numéro du compte..." 
-          class="search-input"
-        >
-      </div>
-
-      <button 
-        v-if="selectedType || searchTerm" 
-        @click="clearFilters"
-        class="clear-filters-btn"
-      >
-        <i class="icon-clear"></i>
-        Effacer les filtres
-      </button>
     </div>
 
-    <!-- Loading State -->
-    <div v-if="loading" class="loading-section">
-      <div class="loading-spinner"></div>
-      <p>Chargement des comptes...</p>
-    </div>
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Search and Filter Section -->
+      <div class="search-section">
+        <div class="filters-grid">
+          <!-- Search -->
+          <div class="search-container">
+            <div class="search-icon">🔍</div>
+            <input
+              type="text"
+              v-model="searchTerm"
+              placeholder="Rechercher par nom ou numéro de compte..."
+              class="search-input"
+            />
+            <div class="search-clear" v-if="searchTerm" @click="searchTerm = ''">✕</div>
+          </div>
 
-    <!-- Empty State -->
-    <div v-else-if="comptesFiltres.length === 0 && !loading" class="empty-state">
-      <div class="empty-icon">📊</div>
-      <h3>Aucun compte trouvé</h3>
-      <p>{{ searchTerm || selectedType ? 'Essayez de modifier vos filtres' : 'Aucun compte disponible' }}</p>
-    </div>
+          <!-- Type Filter -->
+          <div class="filter-container">
+            <select v-model="selectedType" class="filter-select">
+              <option value="">Tous les types</option>
+              <option v-for="type in typesDisponibles" :key="type.id" :value="type.id">
+                {{ type.label }}
+              </option>
+            </select>
+          </div>
 
-    <!-- Table Section -->
-    <div v-else class="table-section">
-      <div class="table-header">
-        <h3>Résultats ({{ comptesFiltres.length }})</h3>
-        <div class="table-actions">
-          <button class="export-btn">
-            <i class="icon-export"></i>
-            Exporter
+          <!-- Clear Filters -->
+          <button 
+            v-if="selectedType || searchTerm" 
+            @click="clearFilters"
+            class="clear-filters-btn"
+          >
+            ✕ Effacer les filtres
           </button>
         </div>
+
+        <div class="results-count" v-if="searchTerm || selectedType">
+          {{ comptesFiltres.length }} résultat(s) trouvé(s)
+        </div>
       </div>
 
-      <div class="table-wrapper">
-        <table class="comptes-table">
-          <thead>
-            <tr>
-              <th class="sortable" @click="sortBy('Value')">
-                Numéro
-                <i class="sort-icon" :class="getSortIcon('Value')"></i>
-              </th>
-              <th class="sortable" @click="sortBy('Name')">
-                Nom du Compte
-                <i class="sort-icon" :class="getSortIcon('Name')"></i>
-              </th>
-              <th>Type</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr 
-              v-for="compte in paginatedComptes" 
-              :key="compte.C_ElementValue_ID"
-              class="table-row"
+      <!-- Loading State -->
+      <div v-if="loading" class="loading-state">
+        <div class="spinner"></div>
+        <p>Chargement des comptes...</p>
+      </div>
+
+      <!-- Empty State -->
+      <div v-else-if="comptesFiltres.length === 0 && !loading" class="empty-state">
+        <div class="empty-icon">📊</div>
+        <h3>Aucun compte trouvé</h3>
+        <p>{{ searchTerm || selectedType ? 'Essayez de modifier vos filtres' : 'Aucun compte disponible' }}</p>
+        <button v-if="searchTerm || selectedType" @click="clearFilters" class="retry-btn">
+          Réinitialiser les filtres
+        </button>
+      </div>
+
+      <!-- Accounts Grid -->
+      <div v-else class="accounts-grid">
+        <div 
+          v-for="compte in paginatedComptes" 
+          :key="compte.C_ElementValue_ID"
+          @click="viewDetails(compte)"
+          class="account-card"
+          :class="`type-${compte.AccountType?.id?.toLowerCase()}`"
+        >
+          <!-- Card Header -->
+          <div class="card-header">
+            <div class="account-number">{{ compte.Value }}</div>
+            <div class="account-type-icon">
+              {{ getTypeIcon(compte.AccountType?.id) }}
+            </div>
+          </div>
+
+          <!-- Account Name -->
+          <h3 class="account-name">{{ compte.Name }}</h3>
+
+          <!-- Account Type -->
+          <div class="account-type-section">
+            <span 
+              class="type-badge" 
+              :class="`type-${compte.AccountType?.id?.toLowerCase()}`"
             >
-              <td class="account-number">
-                <span class="number-badge">{{ compte.Value }}</span>
-              </td>
-              <td class="account-name">
-                <div class="name-cell">
-                  <span class="name-text">{{ compte.Name }}</span>
-                </div>
-              </td>
-              <td class="account-type">
-                <span 
-                  class="type-badge" 
-                  :class="`type-${compte.AccountType?.id?.toLowerCase()}`"
-                >
-                  {{ getTypeLabel(compte.AccountType?.id) }}
-                </span>
-              </td>
-              <td class="actions">
-                <button class="action-btn view-btn" title="Voir les détails">
-                  <i class="icon-eye"></i>
-                </button>
-                <button class="action-btn edit-btn" title="Modifier">
-                  <i class="icon-edit"></i>
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+              {{ getTypeLabel(compte.AccountType?.id) }}
+            </span>
+          </div>
+
+          <!-- Card Footer -->
+          <div class="card-footer">
+            <span class="view-details">Voir les détails →</span>
+            <div class="action-buttons">
+              <button class="action-btn view-btn" @click.stop="viewDetails(compte)" title="Voir les détails">
+                👁️
+              </button>
+              <button class="action-btn edit-btn" @click.stop="editAccount(compte)" title="Modifier">
+                ✏️
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Pagination -->
-      <div v-if="totalPages > 1" class="pagination-section">
+      <div v-if="totalPages > 1 && !loading" class="pagination-section">
         <div class="pagination-info">
-          Affichage {{ startItem }}-{{ endItem }} sur {{ comptesFiltres.length }} comptes
+          <span class="results-text">
+            Affichage <strong>{{ startItem }}-{{ endItem }}</strong> sur <strong>{{ comptesFiltres.length }}</strong> comptes
+          </span>
         </div>
         <div class="pagination-controls">
           <button 
@@ -150,9 +145,10 @@
             @click="currentPage--"
             class="pagination-btn"
           >
-            Précédent
+            ← Précédent
           </button>
-          <span class="page-numbers">
+          
+          <div class="page-numbers">
             <button 
               v-for="page in visiblePages" 
               :key="page"
@@ -161,13 +157,14 @@
             >
               {{ page }}
             </button>
-          </span>
+          </div>
+          
           <button 
             :disabled="currentPage === totalPages"
             @click="currentPage++"
             class="pagination-btn"
           >
-            Suivant
+            Suivant →
           </button>
         </div>
       </div>
@@ -189,14 +186,14 @@ export default {
       sortField: '',
       sortDirection: 'asc',
       currentPage: 1,
-      itemsPerPage: 10,
+      itemsPerPage: 12,
       allAccountTypes: [
-        { id: 'A', label: 'Actif', color: 'blue' },
-        { id: 'E', label: 'Charge', color: 'red' },
-        { id: 'L', label: 'Passif', color: 'orange' },
-        { id: 'M', label: 'Mémo', color: 'gray' },
-        { id: 'O', label: 'Capitaux Propres', color: 'green' },
-        { id: 'R', label: 'Produit', color: 'purple' }
+        { id: 'A', label: 'Actif', icon: '📈' },
+        { id: 'E', label: 'Charge', icon: '💸' },
+        { id: 'L', label: 'Passif', icon: '📉' },
+        { id: 'M', label: 'Mémo', icon: '📝' },
+        { id: 'O', label: 'Capitaux Propres', icon: '💰' },
+        { id: 'R', label: 'Produit', icon: '💹' }
       ]
     };
   },
@@ -207,33 +204,16 @@ export default {
     comptesFiltres() {
       let filtered = this.comptes;
       
-      // Filter by type
       if (this.selectedType) {
         filtered = filtered.filter(c => c.AccountType?.id === this.selectedType);
       }
       
-      // Filter by search term
       if (this.searchTerm) {
         const term = this.searchTerm.toLowerCase();
         filtered = filtered.filter(c => 
           c.Name?.toLowerCase().includes(term) || 
           c.Value?.toString().includes(term)
         );
-      }
-      
-      // Sort
-      if (this.sortField) {
-        filtered.sort((a, b) => {
-          let aVal = a[this.sortField] || '';
-          let bVal = b[this.sortField] || '';
-          
-          if (typeof aVal === 'string') aVal = aVal.toLowerCase();
-          if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-          
-          if (aVal < bVal) return this.sortDirection === 'asc' ? -1 : 1;
-          if (aVal > bVal) return this.sortDirection === 'asc' ? 1 : -1;
-          return 0;
-        });
       }
       
       return filtered;
@@ -280,32 +260,30 @@ export default {
         this.comptes = response.data.records || [];
       } catch (error) {
         console.error('Erreur lors du chargement des comptes:', error);
-        // You might want to show a toast notification here
       } finally {
         this.loading = false;
       }
     },
-    sortBy(field) {
-      if (this.sortField === field) {
-        this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
-      } else {
-        this.sortField = field;
-        this.sortDirection = 'asc';
-      }
-      this.currentPage = 1;
-    },
-    getSortIcon(field) {
-      if (this.sortField !== field) return 'icon-sort';
-      return this.sortDirection === 'asc' ? 'icon-sort-up' : 'icon-sort-down';
-    },
     getTypeLabel(typeId) {
       const type = this.allAccountTypes.find(t => t.id === typeId);
-      return type ? type.label : typeId;
+      return type ? type.label : typeId || 'Inconnu';
+    },
+    getTypeIcon(typeId) {
+      const type = this.allAccountTypes.find(t => t.id === typeId);
+      return type ? type.icon : '📋';
     },
     clearFilters() {
       this.selectedType = '';
       this.searchTerm = '';
       this.currentPage = 1;
+    },
+    viewDetails(compte) {
+      console.log('Voir détails:', compte);
+      // Ajouter votre logique de navigation ici
+    },
+    editAccount(compte) {
+      console.log('Modifier compte:', compte);
+      // Ajouter votre logique d'édition ici
     }
   },
   watch: {
@@ -323,163 +301,224 @@ export default {
 </script>
 
 <style scoped>
-/* Variables CSS */
-:root {
-  --primary-color: #3b82f6;
-  --primary-dark: #2563eb;
-  --secondary-color: #64748b;
-  --success-color: #10b981;
-  --warning-color: #f59e0b;
-  --error-color: #ef4444;
-  --border-color: #e2e8f0;
-  --bg-gray-50: #f8fafc;
-  --bg-gray-100: #f1f5f9;
-  --text-primary: #1e293b;
-  --text-secondary: #64748b;
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-}
-
-/* Container principal */
-.rapport-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-  background: #fff;
+.page-container {
   min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
 
 /* Header Section */
 .header-section {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 2px solid var(--border-color);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 3rem 0 2rem 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.header-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20"><defs><radialGradient id="a" cx="50%" cy="0%" r="100%"><stop offset="0%" style="stop-color:rgb(255,255,255);stop-opacity:0.1" /><stop offset="100%" style="stop-color:rgb(255,255,255);stop-opacity:0" /></radialGradient></defs><rect width="100" height="20" fill="url(%23a)" /></svg>') repeat-x;
+  opacity: 0.1;
 }
 
 .header-content {
-  flex: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  position: relative;
+  z-index: 1;
+}
+
+.title-section {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
 }
 
 .page-title {
-  font-size: 2rem;
+  font-size: 2.5rem;
   font-weight: 700;
-  color: var(--text-primary);
   margin: 0 0 0.5rem 0;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1rem;
+}
+
+.title-icon {
+  font-size: 2rem;
 }
 
 .page-subtitle {
-  color: var(--text-secondary);
   font-size: 1.1rem;
+  opacity: 0.9;
   margin: 0;
+  font-weight: 300;
 }
 
 .header-stats {
   display: flex;
+  align-items: flex-end;
   gap: 1rem;
 }
 
 .stat-card {
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-  color: white;
-  padding: 1rem 1.5rem;
-  border-radius: var(--radius-lg);
-  text-align: center;
-  min-width: 100px;
-  box-shadow: var(--shadow-md);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  min-width: 140px;
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.stat-icon {
+  font-size: 1.5rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+}
+
+.stat-content {
+  flex: 1;
 }
 
 .stat-number {
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: 1.875rem;
+  font-weight: 800;
   margin-bottom: 0.25rem;
+  line-height: 1;
 }
 
 .stat-label {
   font-size: 0.875rem;
   opacity: 0.9;
+  font-weight: 500;
 }
 
-/* Filters Section */
-.filters-section {
-  display: flex;
-  gap: 1.5rem;
-  align-items: flex-end;
-  margin-bottom: 2rem;
+/* Main Content */
+.main-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  position: relative;
+  top: -1rem;
+}
+
+/* Search Section */
+.search-section {
+  background: white;
+  border-radius: 16px;
   padding: 1.5rem;
-  background: var(--bg-gray-50);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-color);
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
-.filter-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  flex: 1;
+.filters-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr auto;
+  gap: 1rem;
+  align-items: center;
 }
 
-.filter-label {
-  font-weight: 600;
-  color: var(--text-primary);
-  font-size: 0.875rem;
+.search-container {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
 }
 
-.select-wrapper {
+.search-icon {
+  position: absolute;
+  left: 1rem;
+  color: #64748b;
+  font-size: 1.2rem;
+  z-index: 2;
+}
+
+.search-input {
+  width: 100%;
+  padding: 1rem 1rem 1rem 3rem;
+  font-size: 1rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.search-input:focus {
+  border-color: #667eea;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.search-clear {
+  position: absolute;
+  right: 1rem;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 0.25rem;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.search-clear:hover {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.filter-container {
   position: relative;
 }
 
-.filter-select, .search-input {
+.filter-select {
   width: 100%;
-  padding: 0.75rem 1rem;
-  border: 2px solid var(--border-color);
-  border-radius: var(--radius-md);
+  padding: 1rem;
   font-size: 1rem;
-  background: white;
-  transition: all 0.2s ease;
-}
-
-.filter-select:focus, .search-input:focus {
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  transition: all 0.3s ease;
   outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgb(59 130 246 / 0.1);
+  cursor: pointer;
 }
 
-.select-wrapper::after {
-  content: '▼';
-  position: absolute;
-  right: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-  color: var(--text-secondary);
-  font-size: 0.75rem;
+.filter-select:focus {
+  border-color: #667eea;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 .clear-filters-btn {
-  padding: 0.75rem 1.5rem;
-  background: var(--error-color);
+  padding: 1rem 1.5rem;
+  background: #ef4444;
   color: white;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  transition: all 0.3s ease;
   white-space: nowrap;
 }
 
@@ -488,21 +527,28 @@ export default {
   transform: translateY(-1px);
 }
 
-/* Loading Section */
-.loading-section {
-  text-align: center;
-  padding: 4rem 2rem;
-  color: var(--text-secondary);
+.results-count {
+  margin-top: 0.75rem;
+  color: #64748b;
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
-.loading-spinner {
+/* Loading State */
+.loading-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #64748b;
+}
+
+.spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid var(--border-color);
-  border-top: 3px solid var(--primary-color);
+  border: 4px solid #f3f4f6;
+  border-top: 4px solid #667eea;
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  margin: 0 auto 1rem;
+  margin: 0 auto 1rem auto;
 }
 
 @keyframes spin {
@@ -514,171 +560,227 @@ export default {
 .empty-state {
   text-align: center;
   padding: 4rem 2rem;
-  color: var(--text-secondary);
+  color: #64748b;
 }
 
 .empty-icon {
   font-size: 4rem;
   margin-bottom: 1rem;
-}
-
-.empty-state h3 {
-  color: var(--text-primary);
-  margin-bottom: 0.5rem;
-}
-
-/* Table Section */
-.table-section {
-  background: white;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-color);
-  overflow: hidden;
-  box-shadow: var(--shadow-sm);
-}
-
-.table-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1.5rem;
-  background: var(--bg-gray-50);
-  border-bottom: 1px solid var(--border-color);
-}
-
-.table-header h3 {
-  margin: 0;
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-.export-btn {
-  padding: 0.5rem 1rem;
-  background: var(--success-color);
-  color: white;
-  border: none;
-  border-radius: var(--radius-md);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.export-btn:hover {
-  background: #059669;
-  transform: translateY(-1px);
-}
-
-/* Table */
-.table-wrapper {
-  overflow-x: auto;
-}
-
-.comptes-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.comptes-table th {
-  background: var(--bg-gray-50);
-  padding: 1rem;
-  text-align: left;
-  font-weight: 600;
-  color: var(--text-primary);
-  border-bottom: 2px solid var(--border-color);
-  white-space: nowrap;
-}
-
-.sortable {
-  cursor: pointer;
-  user-select: none;
-  transition: background-color 0.2s ease;
-}
-
-.sortable:hover {
-  background: var(--bg-gray-100);
-}
-
-.sort-icon {
-  margin-left: 0.5rem;
   opacity: 0.5;
 }
 
-.comptes-table td {
-  padding: 1rem;
-  border-bottom: 1px solid var(--border-color);
-  vertical-align: middle;
+.empty-state h3 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: #374151;
 }
 
-.table-row:hover {
-  background: var(--bg-gray-50);
-}
-
-.number-badge {
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
-  background: var(--primary-color);
+.retry-btn {
+  padding: 0.75rem 1.5rem;
+  background: #667eea;
   color: white;
-  border-radius: var(--radius-sm);
+  border: none;
+  border-radius: 12px;
   font-weight: 600;
-  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 1rem;
 }
 
-.name-cell {
+.retry-btn:hover {
+  background: #5a67d8;
+  transform: translateY(-1px);
+}
+
+/* Accounts Grid */
+.accounts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.account-card {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  position: relative;
+  overflow: hidden;
+}
+
+.account-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  transition: transform 0.3s ease;
+}
+
+.account-card.type-a::before {
+  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+}
+
+.account-card.type-e::before {
+  background: linear-gradient(90deg, #ef4444, #dc2626);
+}
+
+.account-card.type-l::before {
+  background: linear-gradient(90deg, #f59e0b, #d97706);
+}
+
+.account-card.type-m::before {
+  background: linear-gradient(90deg, #6b7280, #4b5563);
+}
+
+.account-card.type-o::before {
+  background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.account-card.type-r::before {
+  background: linear-gradient(90deg, #8b5cf6, #7c3aed);
+}
+
+.account-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.account-card:hover::before {
+  transform: scaleX(1);
+}
+
+.account-card::before {
+  transform: scaleX(0);
+}
+
+/* Card Header */
+.card-header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
+  margin-bottom: 1rem;
 }
 
-.name-text {
-  font-weight: 500;
-  color: var(--text-primary);
+.account-number {
+  background: #f1f5f9;
+  color: #475569;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-family: 'Monaco', 'Consolas', monospace;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.account-type-icon {
+  font-size: 1.5rem;
+}
+
+/* Account Name */
+.account-name {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 1rem 0;
+  line-height: 1.4;
+}
+
+/* Account Type Section */
+.account-type-section {
+  margin-bottom: 1.5rem;
 }
 
 .type-badge {
-  display: inline-block;
-  padding: 0.375rem 0.75rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.875rem;
-  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 0.875rem;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.025em;
+  letter-spacing: 0.05em;
 }
 
-.type-a { background: #dbeafe; color: #1d4ed8; }
-.type-e { background: #fee2e2; color: #dc2626; }
-.type-l { background: #fed7aa; color: #ea580c; }
-.type-m { background: #f3f4f6; color: #374151; }
-.type-o { background: #dcfce7; color: #16a34a; }
-.type-r { background: #ede9fe; color: #7c3aed; }
+.type-badge.type-a { 
+  background: #dbeafe; 
+  color: #1d4ed8;
+}
 
-.actions {
+.type-badge.type-e { 
+  background: #fee2e2; 
+  color: #dc2626;
+}
+
+.type-badge.type-l { 
+  background: #fed7aa; 
+  color: #ea580c;
+}
+
+.type-badge.type-m { 
+  background: #f3f4f6; 
+  color: #374151;
+}
+
+.type-badge.type-o { 
+  background: #dcfce7; 
+  color: #16a34a;
+}
+
+.type-badge.type-r { 
+  background: #ede9fe; 
+  color: #7c3aed;
+}
+
+/* Card Footer */
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.75rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.view-details {
+  color: #667eea;
+  font-size: 0.9rem;
+  font-weight: 500;
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+}
+
+.account-card:hover .view-details {
+  opacity: 1;
+}
+
+.action-buttons {
   display: flex;
   gap: 0.5rem;
 }
 
 .action-btn {
   padding: 0.5rem;
-  border: 1px solid var(--border-color);
+  border: 1px solid #e2e8f0;
   background: white;
-  border-radius: var(--radius-sm);
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  font-size: 0.875rem;
 }
 
 .view-btn:hover {
-  background: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
+  background: #3b82f6;
+  border-color: #3b82f6;
+  transform: scale(1.05);
 }
 
 .edit-btn:hover {
-  background: var(--warning-color);
-  color: white;
-  border-color: var(--warning-color);
+  background: #f59e0b;
+  border-color: #f59e0b;
+  transform: scale(1.05);
 }
 
 /* Pagination */
@@ -686,48 +788,53 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-top: 2rem;
   padding: 1.5rem;
-  background: var(--bg-gray-50);
-  border-top: 1px solid var(--border-color);
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
-.pagination-info {
-  color: var(--text-secondary);
-  font-size: 0.875rem;
+.pagination-info .results-text {
+  color: #64748b;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.pagination-info strong {
+  color: #1e293b;
+  font-weight: 700;
 }
 
 .pagination-controls {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
-.pagination-btn, .page-btn {
-  padding: 0.5rem 1rem;
-  border: 1px solid var(--border-color);
+.pagination-btn {
+  padding: 0.75rem 1.25rem;
+  border: 2px solid #e2e8f0;
   background: white;
-  color: var(--text-primary);
-  border-radius: var(--radius-sm);
+  color: #64748b;
+  border-radius: 12px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   font-size: 0.875rem;
+  font-weight: 600;
 }
 
-.pagination-btn:hover:not(:disabled), .page-btn:hover {
-  background: var(--primary-color);
+.pagination-btn:hover:not(:disabled) {
+  background: #667eea;
   color: white;
-  border-color: var(--primary-color);
+  border-color: #667eea;
+  transform: translateY(-1px);
 }
 
 .pagination-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-.page-btn.active {
-  background: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
+  background: #f8fafc;
 }
 
 .page-numbers {
@@ -735,43 +842,81 @@ export default {
   gap: 0.25rem;
 }
 
-/* Icons (using CSS pseudo-elements for simplicity) */
-.icon-accounts::before { content: '📊'; }
-.icon-filter::before { content: '🔍'; }
-.icon-search::before { content: '🔎'; }
-.icon-clear::before { content: '✖️'; }
-.icon-export::before { content: '📤'; }
-.icon-eye::before { content: '👁️'; }
-.icon-edit::before { content: '✏️'; }
-.icon-sort::before { content: '↕️'; }
-.icon-sort-up::before { content: '↑'; }
-.icon-sort-down::before { content: '↓'; }
+.page-btn {
+  min-width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border: 2px solid #e2e8f0;
+  background: white;
+  color: #64748b;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.875rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-btn:hover {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+  transform: translateY(-1px);
+}
+
+.page-btn.active {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
 
 /* Responsive Design */
-@media (max-width: 768px) {
-  .rapport-container {
-    padding: 1rem;
-  }
-  
-  .header-section {
+@media (max-width: 1024px) {
+  .header-content {
     flex-direction: column;
-    gap: 1rem;
+    gap: 1.5rem;
+    text-align: center;
+    align-items: center;
   }
   
   .header-stats {
-    width: 100%;
     justify-content: center;
+    align-items: center;
   }
   
-  .filters-section {
-    flex-direction: column;
+  .filters-grid {
+    grid-template-columns: 1fr;
     gap: 1rem;
   }
   
-  .table-header {
-    flex-direction: column;
+  .clear-filters-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-title {
+    font-size: 2rem;
+  }
+  
+  .main-content {
+    padding: 1rem;
+  }
+  
+  .accounts-grid {
+    grid-template-columns: 1fr;
     gap: 1rem;
-    align-items: stretch;
+  }
+  
+  .account-card {
+    padding: 1.25rem;
+  }
+  
+  .header-content {
+    padding: 0 1rem;
   }
   
   .pagination-section {
@@ -780,7 +925,41 @@ export default {
   }
   
   .pagination-controls {
+    flex-wrap: wrap;
     justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 1.75rem;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .account-type-icon {
+    align-self: flex-end;
+  }
+  
+  .stat-card {
+    padding: 1rem;
+    flex-direction: column;
+    text-align: center;
+    gap: 0.75rem;
+  }
+  
+  .stat-icon {
+    align-self: center;
+  }
+  
+  .page-numbers {
+    display: none;
   }
 }
 </style>

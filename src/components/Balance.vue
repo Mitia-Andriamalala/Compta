@@ -368,7 +368,7 @@ export default {
 
 /* Balance Details */
 .balance-details {
-  space-y: 0.75rem;
+  white-space: 0.75rem;
 }
 
 .balance-row {
