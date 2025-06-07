@@ -1,0 +1,111 @@
+
+CREATE ROLE adempiere WITH SUPERUSER LOGIN PASSWORD 'adempiere';
+CREATE DATABASE idempiere WITH OWNER = adempiere ENCODING = 'UTF8' TEMPLATE = template0;
+\c idempiere adempiere
+Mot de passe pour l'utilisateur adempiere : adempiere
+
+lien et changement de jar en dmp:
+
+cd "D:\S6\idempiere-server\data\seed"
+jar xvf Adempiere_pg.jar
+
+excecuter dans psql: (import de table de idempiere):
+
+\i 'D:/S6/idempiere-server/data/seed/Adempiere_pg.dmp'
+
+
+restart data : 
+
+\c postgres
+DROP DATABASE idempiere;
+CREATE DATABASE idempiere WITH ENCODING 'UTF8' OWNER adempiere TEMPLATE template0;
+\i 'D:/Projets/idempiere.win32.win32.x86_64/idempiere-server/data/seed/Adempiere_pg.dmp'
+
+
+
+user : SELECT name, password FROM adempiere.ad_user WHERE isactive='Y';
+
+
+    name     |  password
+-------------+-------------
+ GardenUser  | GardenUser
+ Joe Sales   |
+ Carl Boss   |
+ Henry Seed  |
+ GardenAdmin | GardenAdmin
+ WebService  | WebService
+ System      | System
+ SuperUser   | System
+
+http://localhost:8080/osgi/system/console/bundles
+
+ImportProductCSV_ImportProductCSV
+
+Voir produit et leurs prix si il sont active ou pas
+idempiere=# SELECT
+idempiere-#     p.Value,
+idempiere-#     p.Name,
+idempiere-#     pp.IsActive as PriceActive,
+idempiere-#     pp.PriceList,
+idempiere-#     pp.PriceStd,
+idempiere-#     pp.PriceLimit,
+idempiere-#     pl.Name as PriceListName
+idempiere-# FROM M_Product p
+idempiere-# LEFT JOIN M_ProductPrice pp ON p.M_Product_ID = pp.M_Product_ID
+idempiere-# LEFT JOIN M_PriceList_Version plv ON pp.M_PriceList_Version_ID = plv.M_PriceList_Version_ID
+idempiere-# LEFT JOIN M_PriceList pl ON plv.M_PriceList_ID = pl.M_PriceList_ID
+idempiere-# ORDER BY p.Value, pl.Name;
+
+
+
+
+CREATE ROLE admin WITH SUPERUSER LOGIN PASSWORD 'root';
+CREATE ROLE admin WITH SUPERUSER LOGIN PASSWORD 'root';
+GRANT ALL PRIVILEGES ON DATABASE idempiere TO admin;
+idempiere=# SELECT
+idempiere-#     C_ElementValue_ID,
+idempiere-#     Value,
+idempiere-#     Name,
+idempiere-#     Created,
+idempiere-#     Created::text AS Created_Text,
+idempiere-#     AD_Client_ID,
+idempiere-#     AD_Org_ID,
+idempiere-#     IsActive
+idempiere-# FROM c_elementvalue
+idempiere-# WHERE Created >= '2003-01-01 00:00:00'
+idempiere-#   AND Created < '2004-01-01 00:00:00'
+idempiere-# ORDER BY c_elementvalue.Created DESC;
+
+idempiere=# SELECT *
+idempiere-# FROM c_elementvalue
+idempiere-# WHERE EXTRACT(YEAR FROM Created) = 2025;
+
+idempiere=# SELECT
+idempiere-#     C_ElementValue_ID,
+idempiere-#     Value,
+idempiere-#     Name,
+idempiere-#     Created,
+idempiere-#     Created::text AS Created_Text,
+idempiere-#     AD_Client_ID,
+idempiere-#     AD_Org_ID,
+idempiere-#     IsActive
+idempiere-# FROM c_elementvalue
+idempiere-# WHERE Created >= '2025-01-01 00:00:00'
+idempiere-#   AND Created < '2026-01-01 00:00:00'
+idempiere-# ORDER BY c_elementvalue.Created DESC;
+ c_elementvalue_id | value |         name          |          created           |        created_text        | ad_client_id | ad_org_id | isactive
+-------------------+-------+-----------------------+----------------------------+----------------------------+--------------+-----------+----------
+            200003 | 44566 | Tva deductible        | 2025-05-31 23:52:42.342885 | 2025-05-31 23:52:42.342885 |           11 |        11 | Y
+            200004 | 44571 | TVA collectÚe         | 2025-05-31 23:52:42.342885 | 2025-05-31 23:52:42.342885 |           11 |        11 | Y
+            200005 | 60700 | Achat de marchandises | 2025-05-31 23:52:42.342885 | 2025-05-31 23:52:42.342885 |           11 |        11 | Y
+            200001 | 40110 | Fournisseurs divers   | 2025-05-31 23:52:42.342885 | 2025-05-31 23:52:42.342885 |           11 |        11 | Y
+            200002 | 41101 | Client Rakoto         | 2025-05-31 23:52:42.342885 | 2025-05-31 23:52:42.342885 |           11 |        11 | Y
+(5 lignes)
+
+
+
+python import_backend.py
+pip install flask-cors
+pip install pandas
+
+SELECT *

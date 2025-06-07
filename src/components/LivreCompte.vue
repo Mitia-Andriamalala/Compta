@@ -122,20 +122,22 @@
           Détail des Transactions
         </h2>
         <div class="export-actions">
-          <button class="export-btn" @click="exportToPDF">
+          <button class="export-btn" @click="exportToPDF" :disabled="isExporting">
             <i class="fas fa-file-pdf"></i>
-            PDF
+            <span v-if="!isExporting">PDF</span>
+            <span v-else>Export...</span>
           </button>
-          <button class="export-btn" @click="exportToExcel">
+          <button class="export-btn" @click="exportToExcel" :disabled="isExporting">
             <i class="fas fa-file-excel"></i>
-            Excel
+            <span v-if="!isExporting">Excel</span>
+            <span v-else>Export...</span>
           </button>
         </div>
       </div>
 
       <div class="table-card">
         <div class="table-wrapper">
-          <table class="modern-table">
+          <table class="modern-table" id="transactions-table">
             <thead>
               <tr>
                 <th class="sortable" @click="sortBy('date')">
@@ -233,11 +235,19 @@
         </div>
       </div>
     </div>
+
+    <!-- Message de notification pour les exports -->
+    <div v-if="exportMessage" class="export-notification" :class="exportMessage.type">
+      <i :class="exportMessage.type === 'success' ? 'fas fa-check-circle' : 'fas fa-exclamation-circle'"></i>
+      {{ exportMessage.text }}
+    </div>
   </div>
 </template>
 
 <script>
 import * as fonction from '../js/fonction.js';
+// Import des bibliothèques pour l'export
+import * as XLSX from 'xlsx';
 
 export default {
   data() {
@@ -253,7 +263,9 @@ export default {
       compte: sessionStorage.getItem('compte'),
       nomCompte: sessionStorage.getItem('Nomcompte'),
       sortField: '',
-      sortDirection: 'asc'
+      sortDirection: 'asc',
+      isExporting: false,
+      exportMessage: null
     };
   },
   mounted() {
@@ -310,6 +322,13 @@ export default {
         maximumFractionDigits: 2
       }).format(amount);
     },
+    formatCurrencyForExport(amount) {
+      if (amount === null || amount === undefined || amount === 0) return '0,00';
+      return new Intl.NumberFormat('fr-FR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(amount);
+    },
     getAmountClass(amount) {
       if (amount < 0) return 'amount-negative';
       if (amount > 0) return 'amount-positive';
@@ -348,16 +367,310 @@ export default {
         this.sortDirection = 'asc';
       }
     },
-    exportToPDF() {
-      // Placeholder for PDF export implementation
-      console.log('Exporting to PDF...');
-      // Implement PDF generation logic here (e.g., using jsPDF)
+    showExportMessage(text, type = 'success') {
+      this.exportMessage = { text, type };
+      setTimeout(() => {
+        this.exportMessage = null;
+      }, 4000);
     },
-    exportToExcel() {
-      // Placeholder for Excel export implementation
-      console.log('Exporting to Excel...');
-      // Implement Excel export logic here (e.g., using SheetJS)
+    
+    // VERSION SIMPLIFIÉE PDF sans jsPDF - Utilise window.print()
+    async exportToPDF() {
+      try {
+        this.isExporting = true;
+        
+        // Créer une nouvelle fenêtre pour l'impression
+        const printWindow = window.open('', '_blank');
+        
+        if (!printWindow) {
+          throw new Error('Popup bloqué - Veuillez autoriser les popups pour ce site');
+        }
+        
+        // Générer le contenu HTML pour l'impression
+        const htmlContent = this.generatePrintHTML();
+        
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+        
+        // Attendre que le contenu soit chargé avant d'imprimer
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+          }, 500);
+        };
+        
+        this.showExportMessage('Export PDF initié ! Utilisez votre navigateur pour sauvegarder en PDF.', 'success');
+        
+      } catch (error) {
+        console.error('Erreur lors de l\'export PDF:', error);
+        this.showExportMessage('Erreur lors de l\'export PDF: ' + error.message, 'error');
+      } finally {
+        this.isExporting = false;
+      }
     },
+    
+    generatePrintHTML() {
+      const transactions = this.transactionsFiltrées;
+      
+      let tableRows = '';
+      transactions.forEach(transaction => {
+        // Lignes de transaction
+        transaction.gl_journalline.forEach(line => {
+          tableRows += `
+            <tr>
+              <td>${this.formatDate(line.DateAcct)}</td>
+              <td>${transaction.DocumentNo}</td>
+              <td style="text-align: right;">${this.formatCurrencyForExport(line.AmtSourceDr)} €</td>
+              <td style="text-align: right;">${this.formatCurrencyForExport(line.AmtSourceCr)} €</td>
+              <td style="text-align: right;">${this.formatCurrencyForExport(line.AmtSourceDr - line.AmtSourceCr)} €</td>
+            </tr>
+          `;
+        });
+        
+        // Ligne de total du journal
+        tableRows += `
+          <tr style="background-color: #f8f9fa; font-weight: bold;">
+            <td colspan="2">TOTAL JOURNAL</td>
+            <td style="text-align: right;">${this.formatCurrencyForExport(this.totalDebit(transaction))} €</td>
+            <td style="text-align: right;">${this.formatCurrencyForExport(this.totalCredit(transaction))} €</td>
+            <td style="text-align: right;">${this.formatCurrencyForExport(this.totalDebit(transaction) - this.totalCredit(transaction))} €</td>
+          </tr>
+        `;
+      });
+      
+      return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>Livre de Compte - ${this.nomCompte}</title>
+          <style>
+            @media print {
+              @page { 
+                margin: 1cm; 
+                size: A4 landscape;
+              }
+              body { 
+                font-family: Arial, sans-serif; 
+                font-size: 10px;
+                margin: 0;
+                padding: 0;
+              }
+            }
+            body { 
+              font-family: Arial, sans-serif; 
+              margin: 20px;
+              font-size: 12px;
+            }
+            .header {
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              color: white;
+              padding: 20px;
+              margin-bottom: 20px;
+              border-radius: 8px;
+            }
+            .header h1 {
+              margin: 0;
+              font-size: 24px;
+            }
+            .header p {
+              margin: 5px 0 0 0;
+              opacity: 0.9;
+            }
+            .summary {
+              background: #f8f9fa;
+              padding: 15px;
+              margin-bottom: 20px;
+              border-radius: 8px;
+              border-left: 4px solid #667eea;
+            }
+            .summary h3 {
+              margin: 0 0 10px 0;
+              color: #333;
+            }
+            .summary-grid {
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 10px;
+            }
+            .summary-item {
+              display: flex;
+              justify-content: space-between;
+              padding: 5px 0;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 20px;
+            }
+            th, td {
+              border: 1px solid #ddd;
+              padding: 8px;
+              text-align: left;
+            }
+            th {
+              background: linear-gradient(135deg, #667eea, #764ba2);
+              color: white;
+              font-weight: bold;
+            }
+            tr:nth-child(even) {
+              background-color: #f9f9f9;
+            }
+            .total-row {
+              background-color: #f8f9fa !important;
+              font-weight: bold;
+              border-top: 2px solid #dee2e6;
+            }
+            .final-balance {
+              background: linear-gradient(135deg, #667eea, #764ba2);
+              color: white;
+              padding: 15px;
+              text-align: center;
+              border-radius: 8px;
+              margin-top: 20px;
+            }
+            .final-balance h2 {
+              margin: 0;
+              font-size: 20px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>LIVRE DE COMPTE</h1>
+            <p>Compte: ${this.nomCompte}</p>
+            <p>Période: ${this.formatDate(this.dateDebut)} - ${this.formatDate(this.dateFin)}</p>
+            <p>Généré le: ${new Date().toLocaleDateString('fr-FR')}</p>
+          </div>
+          
+          <div class="summary">
+            <h3>RÉSUMÉ</h3>
+            <div class="summary-grid">
+              <div class="summary-item">
+                <span>Total Débits:</span>
+                <span><strong>${this.formatCurrencyForExport(this.totalDebits())} €</strong></span>
+              </div>
+              <div class="summary-item">
+                <span>Total Crédits:</span>
+                <span><strong>${this.formatCurrencyForExport(this.totalCredits())} €</strong></span>
+              </div>
+              <div class="summary-item">
+                <span>Solde Net:</span>
+                <span><strong>${this.formatCurrencyForExport(this.grandTotalBalance())} €</strong></span>
+              </div>
+              <div class="summary-item">
+                <span>Nombre de transactions:</span>
+                <span><strong>${transactions.length}</strong></span>
+              </div>
+            </div>
+          </div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Référence</th>
+                <th>Débit (€)</th>
+                <th>Crédit (€)</th>
+                <th>Solde (€)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows}
+            </tbody>
+          </table>
+          
+          <div class="final-balance">
+            <h2>SOLDE FINAL: ${this.formatCurrencyForExport(this.grandTotalBalance())} €</h2>
+          </div>
+        </body>
+        </html>
+      `;
+    },
+    
+    async exportToExcel() {
+      try {
+        this.isExporting = true;
+        
+        // Préparer les données pour Excel
+        const worksheetData = [];
+        
+        // En-tête d'information
+        worksheetData.push(['LIVRE DE COMPTE']);
+        worksheetData.push([`Compte: ${this.nomCompte}`]);
+        worksheetData.push([`Période: ${this.formatDate(this.dateDebut)} - ${this.formatDate(this.dateFin)}`]);
+        worksheetData.push([`Généré le: ${new Date().toLocaleDateString('fr-FR')}`]);
+        worksheetData.push([]); // Ligne vide
+        
+        // Résumé
+        worksheetData.push(['RÉSUMÉ']);
+        worksheetData.push(['Total Débits:', this.formatCurrencyForExport(this.totalDebits())]);
+        worksheetData.push(['Total Crédits:', this.formatCurrencyForExport(this.totalCredits())]);
+        worksheetData.push(['Solde Net:', this.formatCurrencyForExport(this.grandTotalBalance())]);
+        worksheetData.push(['Nombre de transactions:', this.transactionsFiltrées.length]);
+        worksheetData.push([]); // Ligne vide
+        
+        // En-têtes du tableau
+        worksheetData.push(['Date', 'Référence', 'Débit (€)', 'Crédit (€)', 'Solde (€)']);
+        
+        // Données des transactions
+        this.transactionsFiltrées.forEach(transaction => {
+          // Lignes de transaction
+          transaction.gl_journalline.forEach(line => {
+            worksheetData.push([
+              this.formatDate(line.DateAcct),
+              transaction.DocumentNo,
+              Number(line.AmtSourceDr) || 0,
+              Number(line.AmtSourceCr) || 0,
+              (Number(line.AmtSourceDr) || 0) - (Number(line.AmtSourceCr) || 0)
+            ]);
+          });
+          
+          // Ligne de total du journal
+          worksheetData.push([
+            'TOTAL JOURNAL',
+            '',
+            this.totalDebit(transaction),
+            this.totalCredit(transaction),
+            this.totalDebit(transaction) - this.totalCredit(transaction)
+          ]);
+        });
+        
+        // Ligne de solde final
+        worksheetData.push([]); // Ligne vide
+        worksheetData.push(['SOLDE FINAL', '', '', '', this.grandTotalBalance()]);
+        
+        // Créer le workbook et la worksheet
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+        
+        // Définir les largeurs de colonnes
+        worksheet['!cols'] = [
+          { width: 12 }, // Date
+          { width: 15 }, // Référence
+          { width: 15 }, // Débit
+          { width: 15 }, // Crédit
+          { width: 15 }  // Solde
+        ];
+        
+        // Ajouter la worksheet au workbook
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Livre de Compte');
+        
+        // Générer et télécharger le fichier
+        const fileName = `livre_compte_${this.nomCompte}_${this.dateDebut}_${this.dateFin}.xlsx`;
+        XLSX.writeFile(workbook, fileName);
+        
+        this.showExportMessage('Export Excel réussi !', 'success');
+        
+      } catch (error) {
+        console.error('Erreur lors de l\'export Excel:', error);
+        this.showExportMessage('Erreur lors de l\'export Excel', 'error');
+      } finally {
+        this.isExporting = false;
+      }
+    },
+    
     async fetchTransactions() {
       try {
         const token = sessionStorage.getItem('authToken');
@@ -373,6 +686,7 @@ export default {
         this.journal = await fonction.getIDempiereModels(token, 'gl_journal');
       } catch (error) {
         console.error("Erreur lors du chargement des transactions:", error);
+        this.showExportMessage('Erreur lors du chargement des données', 'error');
       } finally {
         this.loading = false;
       }
@@ -470,9 +784,6 @@ export default {
   border-radius: 16px;
   padding: 1.5rem;
   border: 1px solid rgba(255,255,255,0.2);
-}
-
-.modern-label {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -480,6 +791,7 @@ export default {
   margin-bottom: 1rem;
   font-size: 0.9rem;
 }
+
 
 .date-range-inputs {
   display: flex;
@@ -744,10 +1056,16 @@ export default {
   transition: all 0.2s ease;
 }
 
-.export-btn:hover {
+.export-btn:hover:not(:disabled) {
   background: #f8f9fa;
   border-color: #667eea;
   color: #667eea;
+  transform: translateY(-1px);
+}
+
+.export-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* Tableau moderne */
@@ -972,6 +1290,45 @@ export default {
   color: #d32f2f;
 }
 
+/* Notification d'export */
+.export-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: white;
+  border-radius: 12px;
+  padding: 1rem 1.5rem;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+  border-left: 4px solid;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  z-index: 1000;
+  animation: slideIn 0.3s ease;
+  max-width: 300px;
+}
+
+.export-notification.success {
+  border-left-color: #4caf50;
+  color: #2e7d32;
+}
+
+.export-notification.error {
+  border-left-color: #f44336;
+  color: #d32f2f;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
 /* Responsive */
 @media (max-width: 1200px) {
   .header-content {
@@ -1015,13 +1372,30 @@ export default {
     display: none;
   }
 
+  .section-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+
   .section-title {
     font-size: 1.25rem;
+  }
+
+  .export-actions {
+    justify-content: center;
   }
 
   .export-btn {
     padding: 0.5rem 1rem;
     font-size: 0.8rem;
+    flex: 1;
+  }
+
+  .export-notification {
+    left: 20px;
+    right: 20px;
+    max-width: none;
   }
 }
 </style>

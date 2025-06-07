@@ -201,3 +201,23 @@ export async function getBalancefromidcompte(token,id) {
     totalCredit
   };
 }
+export async function deleteRecord(token, tablename, id) {
+  if (!token) {
+    throw new Error("Token expiré ou manquant. Veuillez vous reconnecter.");
+  }
+
+  const response = await fetch(`/api/v1/models/${tablename}/${id}`, {
+    method: "DELETE",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json"
+    }
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || "Erreur lors de la suppression de l'enregistrement");
+  }
+
+  return { success: true, message: "Enregistrement supprimé avec succès" };
+}

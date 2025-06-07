@@ -1,5 +1,26 @@
 <template>
   <div class="page-container">
+    <!-- Section de Debug - Supprimez cette section une fois que tout fonctionne -->
+    <div v-if="debugMode" class="debug-panel" style="background: #fff3cd; border: 2px solid #ffc107; padding: 1rem; margin: 1rem; border-radius: 8px;">
+      <h3>🔧 Mode Debug</h3>
+      <div style="font-size: 0.8rem; font-family: monospace;">
+        <p><strong>Année sélectionnée:</strong> {{ selectedYear }}</p>
+        <p><strong>Années disponibles:</strong> {{ availableYears.join(', ') }}</p>
+        <p><strong>Données brutes:</strong> {{ financialData.length }} éléments</p>
+        <p><strong>Données filtrées:</strong> {{ filteredData.length }} éléments</p>
+        <p><strong>Is Loading:</strong> {{ isLoading }}</p>
+        <p><strong>Error:</strong> {{ error }}</p>
+        <p><strong>Type de graphique:</strong> {{ chartType }}</p>
+        <details style="margin-top: 1rem;">
+          <summary>Voir données brutes</summary>
+          <pre style="background: #f8f9fa; padding: 1rem; overflow: auto; max-height: 200px;">{{ JSON.stringify(filteredData, null, 2) }}</pre>
+        </details>
+      </div>
+      <button @click="debugMode = false" style="margin-top: 0.5rem; padding: 0.25rem 0.5rem; background: #dc3545; color: white; border: none; border-radius: 4px;">
+        Fermer Debug
+      </button>
+    </div>
+
     <!-- Header Section -->
     <div class="header-section">
       <div class="header-content">
@@ -25,6 +46,9 @@
           <button class="btn btn-refresh" @click="refreshData" :disabled="isLoading">
             <span class="btn-icon" :class="{ 'spinning': isLoading }">🔄</span>
             Actualiser
+          </button>
+          <button class="btn btn-debug" @click="debugMode = !debugMode" :class="{ 'active': debugMode }">
+            🔧 Debug
           </button>
           <div class="export-dropdown" ref="exportDropdown">
             <button class="btn btn-export" @click="toggleExportMenu">
@@ -72,8 +96,19 @@
         <p>Analyse en cours...</p>
       </div>
 
+      <!-- Message si pas de données -->
+      <div v-else-if="!error && filteredData.length === 0 && !isLoading" class="empty-data-state">
+        <div class="empty-icon">📈</div>
+        <h3>Aucune donnée financière</h3>
+        <p>Aucune donnée trouvée pour l'année {{ selectedYear }}</p>
+        <div class="empty-actions">
+          <button @click="fetchData" class="retry-btn">Recharger</button>
+          <button @click="debugMode = true" class="debug-btn">Voir Debug</button>
+        </div>
+      </div>
+
       <!-- Contenu principal -->
-      <div v-else-if="!error">
+      <div v-else-if="!error && filteredData.length > 0">
         
         <!-- KPI Cards -->
         <div class="kpi-section">
@@ -148,10 +183,18 @@
               <p class="section-subtitle">Analyse mensuelle des performances</p>
             </div>
             <div class="chart-controls">
-              <button class="chart-btn active" data-type="line">
+              <button 
+                class="chart-btn" 
+                :class="{ 'active': chartType === 'line' }"
+                @click="changeChartType('line')"
+              >
                 📈 Ligne
               </button>
-              <button class="chart-btn" data-type="bar">
+              <button 
+                class="chart-btn" 
+                :class="{ 'active': chartType === 'bar' }"
+                @click="changeChartType('bar')"
+              >
                 📊 Barres
               </button>
             </div>
@@ -265,23 +308,54 @@ import axios from 'axios'
 export default {
   name: 'FinancialDashboard',
   data() {
-    return {
-      selectedYear: new Date().getFullYear(),
-      chart: null,
-      financialData: [],
-      availableYears: [],
-      isLoading: false,
-      error: null,
-      searchQuery: '',
-      showExportMenu: false
-    }
-  },
+  return {
+    selectedYear: null,
+    chart: null,
+    financialData: [],
+    availableYears: [],
+    isLoading: false,
+    error: null,
+    searchQuery: '',
+    showExportMenu: false,
+    debugMode: false,
+    chartType: 'line' // Type de graphique par défaut
+  }
+},
+
   computed: {
     filteredData() {
-      return this.financialData.filter(item => {
-        const itemYear = new Date(item.mois).getFullYear()
-        return itemYear === this.selectedYear
-      })
+      console.log('🔍 Filtrage des données...');
+      console.log('Année sélectionnée:', this.selectedYear);
+      console.log('Données totales:', this.financialData.length);
+      
+      if (!this.financialData || this.financialData.length === 0) {
+        console.log('❌ Aucune donnée à filtrer');
+        return [];
+      }
+      
+      if (!this.selectedYear) {
+        console.log('❌ Aucune année sélectionnée');
+        return [];
+      }
+      
+      const filtered = this.financialData.filter(item => {
+        // Support des deux formats de date
+        let itemYear;
+        if (item.mois.includes('-')) {
+          // Format YYYY-MM
+          itemYear = parseInt(item.mois.substring(0, 4));
+        } else {
+          // Autre format
+          itemYear = new Date(item.mois).getFullYear();
+        }
+        
+        const match = itemYear === parseInt(this.selectedYear);
+        console.log(`Mois ${item.mois} (année ${itemYear}) vs ${this.selectedYear}: ${match ? '✅' : '❌'}`);
+        return match;
+      });
+      
+      console.log('✅ Données filtrées:', filtered.length);
+      return filtered;
     },
     filteredMonthlyData() {
       let filtered = this.filteredData;
@@ -295,45 +369,77 @@ export default {
     },
     totals() {
       return this.filteredData.reduce((acc, curr) => {
-        acc.chiffreAffaires += curr.chiffreAffaires
-        acc.charges += curr.charges
-        acc.resultatNet += curr.resultatNet
-        return acc
-      }, { chiffreAffaires: 0, charges: 0, resultatNet: 0 })
+        acc.chiffreAffaires += curr.chiffreAffaires || 0;
+        acc.charges += curr.charges || 0;
+        acc.resultatNet += curr.resultatNet || 0;
+        return acc;
+      }, { chiffreAffaires: 0, charges: 0, resultatNet: 0 });
     }
   },
   methods: {
+    
     formatCurrency(value) {
+      if (typeof value !== 'number' || isNaN(value)) return '0,00 €';
       return new Intl.NumberFormat('fr-FR', {
         style: 'currency',
         currency: 'EUR'
-      }).format(value)
+      }).format(value);
     },
     formatDate(dateString) {
-      return new Date(dateString).toLocaleDateString('fr-FR', { 
-        month: 'long'
-      })
+      try {
+        // Support du format YYYY-MM
+        if (dateString.match(/^\d{4}-\d{2}$/)) {
+          const [year, month] = dateString.split('-');
+          const date = new Date(parseInt(year), parseInt(month) - 1);
+          return date.toLocaleDateString('fr-FR', { 
+            month: 'long'
+          });
+        }
+        // Format standard
+        return new Date(dateString).toLocaleDateString('fr-FR', { 
+          month: 'long'
+        });
+      } catch (error) {
+        console.error('Erreur format date:', dateString, error);
+        return dateString;
+      }
     },
     calculateMargin() {
-      if (this.totals.chiffreAffaires === 0) return 0
-      return ((this.totals.resultatNet / this.totals.chiffreAffaires) * 100).toFixed(1)
+      if (this.totals.chiffreAffaires === 0) return 0;
+      return ((this.totals.resultatNet / this.totals.chiffreAffaires) * 100).toFixed(1);
     },
     formatMargin(data) {
-      if (data.chiffreAffaires === 0) return 0
-      return ((data.resultatNet / data.chiffreAffaires) * 100).toFixed(1)
+      if (!data.chiffreAffaires || data.chiffreAffaires === 0) return 0;
+      return ((data.resultatNet / data.chiffreAffaires) * 100).toFixed(1);
     },
     getMarginClass(data) {
-      const margin = this.formatMargin(data)
-      if (margin > 20) return 'excellent'
-      if (margin > 10) return 'good'
-      if (margin > 0) return 'average'
-      return 'poor'
+      const margin = this.formatMargin(data);
+      if (margin > 20) return 'excellent';
+      if (margin > 10) return 'good';
+      if (margin > 0) return 'average';
+      return 'poor';
     },
     refreshData() {
-      this.fetchData()
+      this.fetchData();
     },
     toggleExportMenu() {
       this.showExportMenu = !this.showExportMenu;
+    },
+    // NOUVELLE MÉTHODE: Changer le type de graphique avec délai
+    changeChartType(type) {
+      console.log('🔄 Changement de type de graphique:', this.chartType, '→', type);
+      this.chartType = type;
+      
+      // Forcer la destruction complète avant de recréer
+      if (this.chart) {
+        this.chart.destroy();
+        this.chart = null;
+      }
+      
+      // Délai pour s'assurer que la destruction est complète
+      setTimeout(() => {
+        this.createChart();
+      }, 100);
     },
     exportData(format) {
       this.showExportMenu = false;
@@ -512,222 +618,606 @@ export default {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     },
-    async fetchData() {
-      this.isLoading = true;
-      this.error = null;
-      try {
-        const token = sessionStorage.getItem('authToken');
+    // Remplacez votre méthode fetchData() par cette version debug avancée
+async fetchData() {
+  console.log('🚀 Début du chargement des données...');
+  this.isLoading = true;
+  this.error = null;
+  
+  try {
+    const token = sessionStorage.getItem('authToken');
+    
+    if (!token) {
+      throw new Error('Token d\'authentification manquant');
+    }
 
-        const accountsRes = await axios.get('/api/v1/models/C_ElementValue', {
-          params: {
-            'fields': 'C_ElementValue_ID,Value,Name,AccountType'
-          },
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        const accountTypeMap = {};
-        accountsRes.data.records.forEach(ev => {
-          accountTypeMap[ev.C_ElementValue_ID] = ev.AccountType;
-        });
-
-        const yearStart = `${this.selectedYear}-01-01`;
-        const yearEnd = `${this.selectedYear}-12-31`;
-        const factRes = await axios.get('/api/v1/models/Fact_Acct', {
-          params: {
-            '$filter': `AD_Client_ID eq 11 and AD_Org_ID eq 11 and DateAcct ge '${yearStart}' and DateAcct le '${yearEnd}' and PostingType eq 'A'`
-          },
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        const factAcctData = factRes.data.records;
-
-        const monthlySummary = {};
-        factAcctData.forEach(line => {
-          const month = line.DateAcct.substring(0, 7);
-          const accountId = line.Account_ID?.id || line.Account_ID;
-          const type = accountTypeMap[accountId];
-          if (!monthlySummary[month]) {
-            monthlySummary[month] = { chiffre_affaires: 0, charges: 0 };
-          }
-          if (type === 'R') {
-            monthlySummary[month].chiffre_affaires += line.AmtAcctCr;
-          }
-          if (type === 'E') {
-            monthlySummary[month].charges += line.AmtAcctDr;
-          }
-        });
-
-        this.financialData = Object.entries(monthlySummary).map(([mois, vals]) => ({
-          mois,
-          chiffreAffaires: vals.chiffre_affaires,
-          charges: vals.charges,
-          resultatNet: vals.chiffre_affaires - vals.charges
-        })).sort((a, b) => a.mois.localeCompare(b.mois));
-
-        this.availableYears = [
-          ...new Set(factAcctData.map(line => line.DateAcct.substring(0, 4)))
-        ].sort();
-
-        if (this.availableYears.length > 0 && !this.selectedYear) {
-          this.selectedYear = Math.max(...this.availableYears);
-        }
-      } catch (error) {
-        console.error('Erreur lors du chargement des données:', error);
-        this.error = error.response?.data?.message || 'Erreur lors du chargement des données';
-        this.financialData = [];
-      } finally {
-        this.isLoading = false;
+    console.log('🔑 Token trouvé, récupération des comptes...');
+    
+    const accountsRes = await axios.get('/api/v1/models/C_ElementValue', {
+      params: {
+        'fields': 'C_ElementValue_ID,Value,Name,AccountType'
+      },
+      headers: {
+        'Authorization': `Bearer ${token}`
       }
-    },
+    });
+    
+    console.log('📊 Comptes récupérés:', accountsRes.data.records?.length);
+    
+    // CORRECTION MAJEURE - Gérer AccountType comme objet ET classification automatique
+    // Remplacez cette section dans votre fetchData() :
+
+// CORRECTION MAJEURE - Classification basée sur les numéros de comptes français
+const accountTypeMap = {};
+const typeCount = { R: 0, E: 0, A: 0, L: 0, other: 0 };
+
+// Fonction de classification automatique basée sur le plan comptable français
+const getCorrectAccountType = (account) => {
+  const accountNumber = account.Value;
+  
+  // Classification française par classe de comptes
+  if (accountNumber.startsWith('1') || accountNumber.startsWith('2') || accountNumber.startsWith('3')) {
+    return 'A'; // Actif (Assets) - Comptes de bilan
+  }
+  if (accountNumber.startsWith('4')) {
+    return 'L'; // Passif (Liability) - Comptes de tiers
+  }
+  if (accountNumber.startsWith('5')) {
+    return 'A'; // Actif (Assets) - Comptes financiers
+  }
+  if (accountNumber.startsWith('6')) {
+    return 'E'; // Charges (Expense)
+  }
+  if (accountNumber.startsWith('7')) {
+    return 'R'; // Produits (Revenue)
+  }
+  
+  // Fallback sur le type configuré dans iDempiere (même s'il semble incorrect)
+  return account.AccountType?.id || account.AccountType || 'A';
+};
+
+accountsRes.data.records.forEach(ev => {
+  // Récupérer le type original (même s'il est incorrect)
+  const originalType = ev.AccountType?.id || ev.AccountType;
+  
+  // Appliquer la classification automatique correcte
+  const correctedType = getCorrectAccountType(ev);
+  
+  // Utiliser l'ID correct de l'API
+  const accountId = ev.id; // API retourne directement "id"
+  
+  accountTypeMap[accountId] = correctedType;
+  
+  if (correctedType === 'R') typeCount.R++;
+  else if (correctedType === 'E') typeCount.E++;
+  else if (correctedType === 'A') typeCount.A++;
+  else if (correctedType === 'L') typeCount.L++;
+  else typeCount.other++;
+  
+  // Debug détaillé pour voir les classifications
+  console.log(`📊 Compte ${ev.Value} "${ev.Name}": ${originalType} → ${correctedType} [ID: ${accountId}]`);
+});
+
+console.log('📈 Types de comptes après classification automatique:', typeCount);
+console.log('🗺️ Mapping des comptes (AUTO-CLASSIFIÉ):', accountTypeMap);
+
+console.log('📈 Types de comptes après correction:', typeCount);
+console.log('🗺️ Mapping des comptes (CORRIGÉ):', accountTypeMap);
+
+    // Récupérer toutes les données d'abord pour déterminer les années disponibles
+    console.log('📈 Récupération des écritures comptables...');
+    
+    // CORRECTION: Essayer d'abord Fact_Acct, puis GL_JournalLine en fallback
+    let factRes;
+    try {
+      factRes = await axios.get('/api/v1/models/Fact_Acct', {
+        params: {
+          '$filter': `AD_Client_ID eq 11 and AD_Org_ID eq 11 and PostingType eq 'A'`
+        },
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+    } catch (factError) {
+      console.log('⚠️ Erreur avec Fact_Acct, fallback vers GL_JournalLine');
+      factRes = { data: { records: [] } };
+    }
+    
+    let factAcctData = factRes.data.records || [];
+    console.log('💾 Écritures Fact_Acct récupérées:', factAcctData?.length);
+    
+    // Si pas d'écritures dans Fact_Acct, essayer GL_JournalLine
+    if (!factAcctData || factAcctData.length === 0) {
+      console.log('🔄 Aucune écriture dans Fact_Acct, récupération depuis GL_JournalLine...');
+      
+      try {
+        const journalLineRes = await axios.get('/api/v1/models/GL_JournalLine', {
+          params: {
+            '$expand': 'GL_Journal_ID,Account_ID'
+          },
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        const journalLines = journalLineRes.data.records || [];
+        console.log('💾 Lignes de journal récupérées:', journalLines?.length);
+        
+        // Convertir les lignes de journal au format Fact_Acct
+        factAcctData = journalLines.map(line => ({
+          id: line.id,
+          Account_ID: line.Account_ID,
+          AmtAcctCr: line.AmtSourceCr || 0,
+          AmtAcctDr: line.AmtSourceDr || 0,
+          DateAcct: line.DateAcct,
+          PostingType: 'A', // Mode actual
+          AD_Client_ID: { id: 11 },
+          AD_Org_ID: { id: 11 }
+        }));
+        
+        console.log('✅ Conversion des lignes de journal terminée:', factAcctData.length, 'écritures');
+        
+      } catch (journalError) {
+        console.error('❌ Erreur lors de la récupération des lignes de journal:', journalError);
+        factAcctData = [];
+      }
+    }
+    console.log('💾 Écritures récupérées:', factAcctData?.length);
+    
+    // DEBUG AVANCÉ - Analyser les écritures
+    if (factAcctData && factAcctData.length > 0) {
+      console.log('🔍 Échantillon d\'écritures:', factAcctData.slice(0, 3));
+      
+      // Analyser les montants
+      const amountAnalysis = {
+        withAmtAcctCr: 0,
+        withAmtAcctDr: 0,
+        totalCr: 0,
+        totalDr: 0,
+        accountsUsed: new Set(),
+        monthsFound: new Set()
+      };
+      
+      factAcctData.forEach(line => {
+        if (line.AmtAcctCr && line.AmtAcctCr !== 0) {
+          amountAnalysis.withAmtAcctCr++;
+          amountAnalysis.totalCr += line.AmtAcctCr;
+        }
+        if (line.AmtAcctDr && line.AmtAcctDr !== 0) {
+          amountAnalysis.withAmtAcctDr++;
+          amountAnalysis.totalDr += line.AmtAcctDr;
+        }
+        
+        const accountId = line.Account_ID?.id || line.Account_ID;
+        amountAnalysis.accountsUsed.add(accountId);
+        amountAnalysis.monthsFound.add(line.DateAcct.substring(0, 7));
+      });
+      
+      console.log('💰 Analyse des montants:', {
+        lignesAvecCredit: amountAnalysis.withAmtAcctCr,
+        lignesAvecDebit: amountAnalysis.withAmtAcctDr,
+        totalCredit: amountAnalysis.totalCr,
+        totalDebit: amountAnalysis.totalDr,
+        comptesUtilises: amountAnalysis.accountsUsed.size,
+        moisTrouves: Array.from(amountAnalysis.monthsFound).sort()
+      });
+    }
+
+    // Extraire les années disponibles
+    const yearsSet = new Set();
+    factAcctData.forEach(line => {
+      const year = line.DateAcct.substring(0, 4);
+      yearsSet.add(year);
+    });
+    
+    this.availableYears = Array.from(yearsSet).sort((a, b) => b.localeCompare(a));
+    console.log('📅 Années disponibles:', this.availableYears);
+
+    // Sélectionner automatiquement l'année la plus récente si aucune n'est sélectionnée
+    if (!this.selectedYear && this.availableYears.length > 0) {
+      this.selectedYear = parseInt(this.availableYears[0]);
+      console.log('🎯 Année auto-sélectionnée:', this.selectedYear);
+    }
+
+    // Filtrer par année sélectionnée
+    if (this.selectedYear) {
+      const yearStart = `${this.selectedYear}-01-01`;
+      const yearEnd = `${this.selectedYear}-12-31`;
+      
+      const filteredFactData = factAcctData.filter(line => {
+        return line.DateAcct >= yearStart && line.DateAcct <= yearEnd;
+      });
+      
+      console.log(`📊 Écritures pour ${this.selectedYear}:`, filteredFactData.length);
+
+      const monthlySummary = {};
+      const debugSummary = {
+        revenueLines: 0,
+        expenseLines: 0,
+        unknownTypeLines: 0,
+        linesWithoutAmount: 0,
+        totalRevenueAmount: 0,
+        totalExpenseAmount: 0,
+        accountMatches: 0,
+        accountMismatches: 0
+      };
+      
+      filteredFactData.forEach(line => {
+        const month = line.DateAcct.substring(0, 7); // Format YYYY-MM
+        const accountId = line.Account_ID?.id || line.Account_ID;
+        const type = accountTypeMap[accountId];
+        
+        // CORRECTION : Debug amélioré pour voir les correspondances
+        if (!type) {
+          debugSummary.unknownTypeLines++;
+          debugSummary.accountMismatches++;
+          console.log('⚠️ Compte sans type:', { 
+            accountId, 
+            lineAccount: line.Account_ID,
+            availableKeys: Object.keys(accountTypeMap).slice(0, 5)
+          });
+        } else {
+          debugSummary.accountMatches++;
+          console.log(`✅ Match trouvé - Compte ${accountId}: Type = ${type}`);
+        }
+        
+        if (!line.AmtAcctCr && !line.AmtAcctDr) {
+          debugSummary.linesWithoutAmount++;
+        }
+        
+        if (!monthlySummary[month]) {
+          monthlySummary[month] = { 
+            chiffre_affaires: 0, 
+            charges: 0,
+            debug: {
+              revenueEntries: [],
+              expenseEntries: []
+            }
+          };
+        }
+        
+        // Type 'R' = Revenue (Chiffre d'affaires)
+        if (type === 'R') {
+          debugSummary.revenueLines++;
+          const amount = line.AmtAcctCr || 0;
+          debugSummary.totalRevenueAmount += amount;
+          monthlySummary[month].chiffre_affaires += amount;
+          monthlySummary[month].debug.revenueEntries.push({
+            accountId,
+            amount: amount,
+            line: line
+          });
+          console.log(`💰 REVENUE ajouté: ${amount} pour compte ${accountId}`);
+        }
+        
+        // Type 'E' = Expense (Charges)
+        else if (type === 'E') {
+          debugSummary.expenseLines++;
+          const amount = line.AmtAcctDr || 0;
+          debugSummary.totalExpenseAmount += amount;
+          monthlySummary[month].charges += amount;
+          monthlySummary[month].debug.expenseEntries.push({
+            accountId,
+            amount: amount,
+            line: line
+          });
+          console.log(`💸 EXPENSE ajouté: ${amount} pour compte ${accountId}`);
+        }
+        
+        else {
+          console.log(`ℹ️ Ligne ignorée (type ${type}): compte ${accountId}`);
+        }
+      });
+      
+      console.log('🔍 Résumé du processing (CORRIGÉ):', debugSummary);
+      console.log('📊 Résumé mensuel brut:', monthlySummary);
+
+      // Transformer en format attendu par le composant
+      this.financialData = Object.entries(monthlySummary).map(([mois, vals]) => ({
+        mois, // Format YYYY-MM
+        chiffreAffaires: vals.chiffre_affaires || 0,
+        charges: vals.charges || 0,
+        resultatNet: (vals.chiffre_affaires || 0) - (vals.charges || 0),
+        debug: vals.debug // Ajouter les infos de debug
+      })).sort((a, b) => a.mois.localeCompare(b.mois));
+
+      console.log('✅ Données formatées finales (CORRIGÉ):', this.financialData);
+      
+      // Afficher le détail pour le mois actuel
+      if (this.financialData.length > 0) {
+        const currentMonth = this.financialData[this.financialData.length - 1];
+        console.log('🔍 Détail du mois', currentMonth.mois, ':', {
+          revenue: currentMonth.debug.revenueEntries,
+          expenses: currentMonth.debug.expenseEntries
+        });
+      }
+      
+    } else {
+      console.log('⚠️ Aucune année sélectionnée');
+      this.financialData = [];
+    }
+
+  } catch (error) {
+    console.error('❌ Erreur lors du chargement des données:', error);
+    this.error = error.response?.data?.message || error.message || 'Erreur lors du chargement des données';
+    this.financialData = [];
+  } finally {
+    this.isLoading = false;
+    console.log('🏁 Chargement terminé');
+  }
+},
+    // MÉTHODE SÉCURISÉE: Créer le graphique avec désactivation des animations pour les barres
     createChart() {
+      console.log('📊 Création du graphique - Type:', this.chartType);
+      
       if (!this.$refs.chartCanvas) {
         console.warn('Canvas non trouvé, graphique non créé')
         return
       }
 
-      const ctx = this.$refs.chartCanvas.getContext('2d')
-      
+      // Destruction complète et reset du canvas
       if (this.chart) {
+        console.log('🗑️ Destruction du graphique précédent');
         this.chart.destroy()
+        this.chart = null
       }
+
+      // Reset du canvas
+      const canvas = this.$refs.chartCanvas;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       if (!this.filteredData || this.filteredData.length === 0) {
         console.warn('Pas de données à afficher dans le graphique')
         return
       }
 
-      this.chart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: this.filteredData.map(item => {
-            const date = new Date(item.mois)
-            return date.toLocaleDateString('fr-FR', { month: 'short' })
-          }),
-          datasets: [
-            {
-              label: 'Chiffre d\'affaires',
-              data: this.filteredData.map(item => item.chiffreAffaires),
-              borderColor: '#10B981',
-              backgroundColor: 'rgba(16, 185, 129, 0.1)',
-              tension: 0.4,
-              fill: true,
-              pointBackgroundColor: '#10B981',
-              pointBorderColor: '#fff',
-              pointBorderWidth: 2,
-              pointRadius: 5
-            },
-            {
-              label: 'Charges',
-              data: this.filteredData.map(item => item.charges),
-              borderColor: '#EF4444',
-              backgroundColor: 'rgba(239, 68, 68, 0.1)',
-              tension: 0.4,
-              fill: true,
-              pointBackgroundColor: '#EF4444',
-              pointBorderColor: '#fff',
-              pointBorderWidth: 2,
-              pointRadius: 5
-            },
-            {
-              label: 'Résultat net',
-              data: this.filteredData.map(item => item.resultatNet),
-              borderColor: '#667eea',
-              backgroundColor: 'rgba(102, 126, 234, 0.1)',
-              tension: 0.4,
-              fill: true,
-              pointBackgroundColor: '#667eea',
-              pointBorderColor: '#fff',
-              pointBorderWidth: 2,
-              pointRadius: 5
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          interaction: {
-            mode: 'index',
-            intersect: false,
-          },
-          plugins: {
-            title: {
-              display: false
-            },
-            legend: {
-              position: 'bottom',
-              labels: {
-                usePointStyle: true,
-                padding: 20,
-                font: {
-                  size: 14
-                }
-              }
-            },
-            tooltip: {
-              backgroundColor: 'rgba(0, 0, 0, 0.8)',
-              titleColor: '#fff',
-              bodyColor: '#fff',
-              borderColor: '#374151',
-              borderWidth: 1,
-              cornerRadius: 8,
-              displayColors: true,
-              callbacks: {
-                label: (context) => {
-                  return `${context.dataset.label}: ${this.formatCurrency(context.parsed.y)}`
-                }
-              }
-            }
-          },
-          scales: {
-            x: {
-              grid: {
-                display: false
+      const labels = this.filteredData.map(item => this.formatDate(item.mois));
+      const revenueData = this.filteredData.map(item => item.chiffreAffaires);
+      const expenseData = this.filteredData.map(item => item.charges);
+      const netResultData = this.filteredData.map(item => item.resultatNet);
+
+      let chartConfig;
+
+      if (this.chartType === 'line') {
+        // Configuration pour graphique en ligne (avec animations)
+        chartConfig = {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: 'Chiffre d\'affaires',
+                data: revenueData,
+                borderColor: '#10B981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: '#10B981',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 5,
+                pointHoverRadius: 7
               },
-              ticks: {
-                font: {
-                  size: 12
+              {
+                label: 'Charges',
+                data: expenseData,
+                borderColor: '#EF4444',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: '#EF4444',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 5,
+                pointHoverRadius: 7
+              },
+              {
+                label: 'Résultat net',
+                data: netResultData,
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: '#667eea',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 5,
+                pointHoverRadius: 7
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: {
+              duration: 750,
+              easing: 'easeInOutQuart'
+            },
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: {
+                  usePointStyle: true,
+                  padding: 20,
+                  font: { size: 14 }
+                }
+              },
+              tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                borderColor: '#374151',
+                borderWidth: 1,
+                cornerRadius: 8,
+                displayColors: true,
+                callbacks: {
+                  label: (context) => `${context.dataset.label}: ${this.formatCurrency(context.parsed.y)}`
                 }
               }
             },
-            y: {
-              beginAtZero: true,
-              grid: {
-                color: 'rgba(0, 0, 0, 0.05)'
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: { font: { size: 12 } }
               },
-              ticks: {
-                callback: (value) => this.formatCurrency(value),
-                font: {
-                  size: 12
+              y: {
+                beginAtZero: true,
+                grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                ticks: {
+                  callback: (value) => this.formatCurrency(value),
+                  font: { size: 12 }
                 }
               }
             }
           }
+        };
+      } else {
+        // Configuration pour graphique en barres (SANS animations pour éviter les erreurs)
+        chartConfig = {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: 'Chiffre d\'affaires',
+                data: revenueData,
+                backgroundColor: '#10B981',
+                borderColor: '#10B981',
+                borderWidth: 1
+              },
+              {
+                label: 'Charges',
+                data: expenseData,
+                backgroundColor: '#EF4444',
+                borderColor: '#EF4444',
+                borderWidth: 1
+              },
+              {
+                label: 'Résultat net',
+                data: netResultData,
+                backgroundColor: '#667eea',
+                borderColor: '#667eea',
+                borderWidth: 1
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            // DÉSACTIVER TOUTES LES ANIMATIONS pour éviter l'erreur
+            animation: false,
+            animations: false,
+            transitions: {
+              active: {
+                animation: {
+                  duration: 0
+                }
+              }
+            },
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: {
+                  padding: 20,
+                  font: { size: 14 }
+                }
+              },
+              tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                borderColor: '#374151',
+                borderWidth: 1,
+                cornerRadius: 8,
+                displayColors: true,
+                animation: false, // Désactiver même les animations des tooltips
+                callbacks: {
+                  label: (context) => `${context.dataset.label}: ${this.formatCurrency(context.parsed.y)}`
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: { font: { size: 12 } }
+              },
+              y: {
+                beginAtZero: true,
+                grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                ticks: {
+                  callback: (value) => this.formatCurrency(value),
+                  font: { size: 12 }
+                }
+              }
+            }
+          }
+        };
+      }
+
+      // Créer le graphique avec protection d'erreur renforcée
+      try {
+        console.log('🚀 Tentative de création du graphique...');
+        this.chart = new Chart(ctx, chartConfig);
+        console.log('✅ Graphique créé avec succès - Type:', this.chartType);
+        
+        // Protection supplémentaire: vérifier que le graphique est bien créé
+        if (!this.chart) {
+          throw new Error('Le graphique n\'a pas pu être créé');
         }
-      })
+        
+      } catch (error) {
+        console.error('❌ Erreur lors de la création du graphique:', error);
+        this.chart = null;
+        
+        // Message d'erreur à l'utilisateur pour les barres
+        if (this.chartType === 'bar') {
+          console.log('⚠️ Problème avec le graphique en barres, basculement vers ligne...');
+          // Forcer le retour au graphique en ligne
+          setTimeout(() => {
+            this.chartType = 'line';
+            this.createChart();
+          }, 500);
+        }
+      }
     }
   },
   watch: {
     selectedYear: {
-      handler() {
-        this.fetchData()
+      handler(newYear, oldYear) {
+        console.log(`🔄 Changement d'année: ${oldYear} → ${newYear}`);
+        if (newYear && newYear !== oldYear) {
+          this.fetchData();
+        }
       }
     },
     filteredData: {
-      handler() {
+      handler(newData) {
+        console.log('📊 Données filtrées mises à jour:', newData.length, 'éléments');
         this.$nextTick(() => {
-          this.createChart()
-        })
+          this.createChart();
+        });
       },
       deep: true
+    },
+    // NOUVEAU WATCH: Recréer le graphique quand le type change
+    chartType: {
+      handler(newType, oldType) {
+        console.log(`📈 Changement de type de graphique: ${oldType} → ${newType}`);
+        if (this.filteredData && this.filteredData.length > 0) {
+          this.$nextTick(() => {
+            this.createChart();
+          });
+        }
+      }
     }
   },
   async mounted() {
-    await this.fetchData()
+    console.log('🎬 Montage du composant FinancialDashboard');
+    await this.fetchData();
     this.$nextTick(() => {
-      this.createChart()
-    })
+      this.createChart();
+    });
     
     // Fermer le menu d'export en cliquant ailleurs
     document.addEventListener('click', (event) => {
@@ -739,6 +1229,9 @@ export default {
   beforeUnmount() {
     // Nettoyer les event listeners
     document.removeEventListener('click', this.handleClickOutside);
+    if (this.chart) {
+      this.chart.destroy();
+    }
   }
 }
 </script>
@@ -747,6 +1240,12 @@ export default {
 .page-container {
   min-height: 100vh;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+/* Debug Panel */
+.debug-panel {
+  font-family: 'Courier New', monospace;
+  z-index: 1000;
 }
 
 /* Header Section */
@@ -979,6 +1478,18 @@ export default {
   transform: translateY(-1px);
 }
 
+.btn-debug {
+  background: rgba(255, 193, 7, 0.2);
+  color: white;
+  border: 2px solid rgba(255, 193, 7, 0.3);
+}
+
+.btn-debug:hover,
+.btn-debug.active {
+  background: rgba(255, 193, 7, 0.3);
+  border-color: rgba(255, 193, 7, 0.5);
+}
+
 .btn-export {
   background: rgba(255, 255, 255, 0.9);
   color: #667eea;
@@ -1012,7 +1523,7 @@ export default {
 }
 
 /* Loading and Error States */
-.loading-state, .error-state {
+.loading-state, .error-state, .empty-data-state {
   text-align: center;
   padding: 4rem 2rem;
   background: white;
@@ -1031,24 +1542,24 @@ export default {
   margin: 0 auto 1rem auto;
 }
 
-.error-icon {
+.error-icon, .empty-icon {
   font-size: 4rem;
   margin-bottom: 1rem;
   opacity: 0.5;
 }
 
-.error-state h3, .loading-state h3 {
+.error-state h3, .loading-state h3, .empty-data-state h3 {
   font-size: 1.5rem;
   margin-bottom: 0.5rem;
   color: #374151;
 }
 
-.error-state p, .loading-state p {
+.error-state p, .loading-state p, .empty-data-state p {
   color: #64748b;
   margin-bottom: 1.5rem;
 }
 
-.retry-btn {
+.retry-btn, .debug-btn {
   padding: 0.75rem 1.5rem;
   background: #667eea;
   color: white;
@@ -1057,11 +1568,27 @@ export default {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
+  margin: 0 0.5rem;
 }
 
-.retry-btn:hover {
+.retry-btn:hover, .debug-btn:hover {
   background: #5a67d8;
   transform: translateY(-1px);
+}
+
+.debug-btn {
+  background: #ffc107;
+  color: #000;
+}
+
+.debug-btn:hover {
+  background: #e0a800;
+}
+
+.empty-actions {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
 }
 
 /* KPI Section */

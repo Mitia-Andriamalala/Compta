@@ -14,3 +14,20 @@ DELETE FROM C_ElementValue;
 
 -- Étape 4 : réactiver la réplication
 SET session_replication_role = origin;
+
+-- 1. D'abord supprimer toutes les lignes du journal REF01
+DELETE FROM GL_JournalLine 
+WHERE GL_Journal_ID IN (
+    SELECT GL_Journal_ID 
+    FROM GL_Journal 
+    WHERE DocumentNo = 'REF01'
+);
+
+-- 2. Ensuite supprimer le journal REF01 lui-même
+DELETE FROM GL_Journal 
+WHERE DocumentNo = 'REF01';
+
+-- 3. Vérifier que c'est bien supprimé
+SELECT DocumentNo, DocStatus, Posted
+FROM GL_Journal
+WHERE DocumentNo IN ('REF01', 'REF02', 'REF03', 'REF04');

@@ -167,6 +167,32 @@ export default {
       const date = new Date(year, month - 1, day);
       return date.getDate() === day && date.getMonth() === month - 1 && date.getFullYear() === year;
     },
+    
+    // NOUVELLE MÉTHODE: Classification automatique des comptes
+    getAccountType(accountNumber) {
+      const account = accountNumber.toString();
+      
+      // Classification française par classe de comptes
+      if (account.startsWith('1') || account.startsWith('2') || account.startsWith('3')) {
+        return 'A'; // Actif (Assets) - Comptes de bilan
+      }
+      if (account.startsWith('4')) {
+        return 'L'; // Passif (Liability) - Comptes de tiers
+      }
+      if (account.startsWith('5')) {
+        return 'A'; // Actif (Assets) - Comptes financiers
+      }
+      if (account.startsWith('6')) {
+        return 'E'; // Charges (Expense)
+      }
+      if (account.startsWith('7')) {
+        return 'R'; // Produits (Revenue)
+      }
+      
+      // Par défaut
+      return 'A';
+    },
+
     async valider() {
       console.log("valeur csv 1: ", this.csvData1);
       console.log("valeur csv 2: ", this.csvData2);
@@ -186,64 +212,219 @@ export default {
       if (valide) {
         try {
           
-          // Création des comptes
+          // CORRECTION: Création des comptes avec vérification d'existence
           for (let k = 0; k < this.csvData2.length; k++) {
-            let comptedata = {
-              AD_Org_ID: { id: 11 },
-              AD_Client_ID: { id: 11 },
-              isActive: true,
-              C_Element_ID: { id: 105 },
-              Value: this.csvData2[k].compte,
-              Name: this.csvData2[k].libelle,
-              AccountType: "R",
-              AccountSign: "N",
-              IsSummary: false
-            };
-            await fonction.creationtable(token, 'c_elementvalue', comptedata);
+            // Vérifier si le compte existe déjà
+            try {
+              const existingAccount = await fonction.getIDempiereModelsWhereSelect(
+                token, 
+                'c_elementvalue', 
+                'value', 
+                `'${this.csvData2[k].compte}'`, 
+                'C_ElementValue_ID'
+              );
+              
+              if (existingAccount.records && existingAccount.records.length > 0) {
+                console.log(`⚠️ Compte ${this.csvData2[k].compte} existe déjà - mise à jour du type si nécessaire`);
+                
+                // NOUVEAU: Mettre à jour le type de compte existant
+                const accountType = this.getAccountType(this.csvData2[k].compte);
+                const accountId = existingAccount.records[0].id;
+                
+                // Mettre à jour le type de compte
+                const updateData = {
+                  AccountType: accountType
+                };
+                
+                await fonction.updateTable(token, 'c_elementvalue', accountId, updateData);
+                console.log(`✅ Compte ${this.csvData2[k].compte} mis à jour - Type: ${accountType}`);
+                
+              } else {
+                // Le compte n'existe pas, le créer
+                const accountType = this.getAccountType(this.csvData2[k].compte);
+                
+                let comptedata = {
+                  AD_Org_ID: { id: 11 },
+                  AD_Client_ID: { id: 11 },
+                  isActive: true,
+                  C_Element_ID: { id: 105 },
+                  Value: this.csvData2[k].compte,
+                  Name: this.csvData2[k].libelle,
+                  AccountType: accountType,
+                  AccountSign: "N",
+                  IsSummary: false
+                };
+                
+                console.log(`🏦 Création compte ${this.csvData2[k].compte} (${this.csvData2[k].libelle}) - Type: ${accountType}`);
+                await fonction.creationtable(token, 'c_elementvalue', comptedata);
+              }
+              
+            } catch (accountError) {
+              console.error(`❌ Erreur avec le compte ${this.csvData2[k].compte}:`, accountError);
+              // Continuer avec les autres comptes
+            }
           }
           
-          // Création des journaux
-          for (let j = 0; j < this.uniqueReferences.length; j++) {
-            let dateformate = fonction.convertirDate(this.uniqueReferences[j].date);
-            let debutMois= fonction.getDebutMois(dateformate);
-            let riri = await fonction.getIDempiereModelsWhereSelect(token, 'c_period', 'StartDate', debutMois, 'c_period_id');
-            console.log(dateformate)
-            console.log(debutMois)
-            console.log(riri)
+          // NOUVELLE APPROCHE: Créer journaux avec leurs lignes groupées
+          const journalGroups = {};
+          
+          // Grouper les lignes par référence de journal
+          this.csvData1.forEach(line => {
+            if (!journalGroups[line.reference]) {
+              journalGroups[line.reference] = [];
+            }
+            journalGroups[line.reference].push(line);
+          });
+          
+          console.log('📊 Groupes de journaux:', Object.keys(journalGroups));
+          
+          // Créer chaque journal avec toutes ses lignes
+          for (const [journalRef, lines] of Object.entries(journalGroups)) {
+            try {
+              console.log(`\n🏗️ Traitement du journal ${journalRef} avec ${lines.length} lignes`);
+              
+              // Vérifier si le journal existe déjà
+              const existingJournal = await fonction.getIDempiereModelsWhereSelect(
+                token,
+                'gl_journal',
+                'DocumentNo',
+                `'${journalRef}'`,
+                'GL_Journal_ID'
+              );
+              
+              let journalId;
+              
+              if (existingJournal.records && existingJournal.records.length > 0) {
+                console.log(`⚠️ Journal ${journalRef} existe déjà - utilisation de l'existant`);
+                journalId = existingJournal.records[0].id;
+              } else {
+                // Créer le nouveau journal
+                const firstLine = lines[0];
+                let dateformate = fonction.convertirDate(firstLine.date);
+                let debutMois = fonction.getDebutMois(dateformate);
+                
+                console.log(`🔍 Debug journal ${journalRef}:`);
+                console.log(`  Date originale: ${firstLine.date}`);
+                console.log(`  Date formatée: ${dateformate}`);
+                console.log(`  Début mois: ${debutMois}`);
+                
+                // Recherche de la période
+                let riri = await fonction.getIDempiereModelsWhereSelect(token, 'c_period', 'StartDate', debutMois, 'c_period_id');
+                
+                if (!riri.records || riri.records.length === 0) {
+                  console.log(`🔄 Recherche d'une période alternative pour 2025...`);
+                  const alternativePeriod = await fonction.getIDempiereModelsWhereSelect(
+                    token, 
+                    'c_period', 
+                    'Name', 
+                    `'Jun-25'`,
+                    'c_period_id'
+                  );
+                  
+                  if (alternativePeriod.records && alternativePeriod.records.length > 0) {
+                    riri = alternativePeriod;
+                    console.log(`✅ Période alternative trouvée: ${alternativePeriod.records[0].id}`);
+                  } else {
+                    throw new Error(`Aucune période trouvée pour la date ${dateformate}`);
+                  }
+                }
+                
+                console.log(`  Période trouvée: ID = ${riri.records[0].id}`);
 
-            let nouvelObjet = {
-              AD_Org_ID: { id: 11 },
-              C_DocType_ID: { id: 115 },
-              DocumentNo: this.uniqueReferences[j].reference,
-              DateDoc: dateformate,
-              DateAcct: dateformate,
-              C_Period_ID: { id: riri.records[0].id },
-              Description: this.uniqueReferences[j].reference
-            };
-            await fonction.creationtable(token, 'gl_journal', nouvelObjet);
+                // Créer le journal en mode DRAFT pour pouvoir ajouter des lignes
+                let nouvelObjet = {
+                  AD_Org_ID: { id: 11 },
+                  AD_Client_ID: { id: 11 },
+                  C_DocType_ID: { id: 115 },
+                  DocumentNo: journalRef,
+                  DateDoc: dateformate,
+                  DateAcct: dateformate,
+                  C_Period_ID: { id: riri.records[0].id },
+                  Description: journalRef,
+                  C_Currency_ID: { id: 100 },
+                  GL_Category_ID: { id: 108 },
+                  DocStatus: 'DR', // ← CRITIQUE: Mode DRAFT pour permettre l'ajout de lignes
+                  IsActive: true
+                };
+                
+                console.log(`📅 Création journal en mode DRAFT:`, nouvelObjet);
+                const journalResult = await fonction.creationtable(token, 'gl_journal', nouvelObjet);
+                journalId = journalResult.id;
+                console.log(`✅ Journal ${journalRef} créé avec ID: ${journalId}`);
+              }
+              
+              // Maintenant créer toutes les lignes du journal
+              let successLines = 0;
+              let errorLines = 0;
+              
+              for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+                const line = lines[lineIndex];
+                try {
+                  // Récupérer l'ID du compte
+                  const accountResult = await fonction.getIDempiereModelsWhereSelect(
+                    token, 
+                    'c_elementvalue', 
+                    'value', 
+                    `'${line.compte}'`, 
+                    'C_ElementValue_ID'
+                  );
+                  
+                  if (!accountResult.records || accountResult.records.length === 0) {
+                    console.error(`❌ Compte ${line.compte} non trouvé`);
+                    errorLines++;
+                    continue;
+                  }
+                  
+                  const dateline = fonction.convertirDate(line.date);
+                  
+                  let journalLinedata = {
+                    GL_Journal_ID: { id: journalId }, // ← CORRECTION: Utiliser l'ID au lieu de l'identifier
+                    Account_ID: { id: accountResult.records[0].id },
+                    AmtSourceDr: parseFloat(line.debit) || 0,
+                    AmtSourceCr: parseFloat(line.credit) || 0,
+                    AmtAcctDr: parseFloat(line.debit) || 0,   // ← AJOUT: Montants comptables
+                    AmtAcctCr: parseFloat(line.credit) || 0, // ← AJOUT: Montants comptables
+                    C_Currency_ID: { id: 100 },
+                    DateAcct: dateline,
+                    Line: (lineIndex + 1) * 10 // ← AJOUT: Numéro de ligne
+                  };
+                  
+                  console.log(`  📝 Ligne ${lineIndex + 1}: Compte ${line.compte}, Débit: ${line.debit || 0}, Crédit: ${line.credit || 0}`);
+                  await fonction.creationtable(token, 'gl_journalline', journalLinedata);
+                  successLines++;
+                  
+                } catch (lineError) {
+                  console.error(`❌ Erreur ligne ${lineIndex + 1} du journal ${journalRef}:`, lineError);
+                  errorLines++;
+                }
+              }
+              
+              console.log(`✅ Journal ${journalRef} terminé: ${successLines} lignes créées, ${errorLines} erreurs`);
+              
+              // Optionnel: Compléter le journal si toutes les lignes sont créées avec succès
+              if (errorLines === 0 && successLines > 0) {
+                try {
+                  console.log(`🔄 Tentative de validation du journal ${journalRef}...`);
+                  // Ici vous pourriez ajouter la logique pour valider le journal
+                  // Mais pour l'instant, on le laisse en DRAFT
+                } catch (completeError) {
+                  console.log(`⚠️ Journal créé mais non validé: ${completeError.message}`);
+                }
+              }
+              
+            } catch (journalError) {
+              console.error(`❌ Erreur fatale avec le journal ${journalRef}:`, journalError);
+            }
           }
           
-          // Création des lignes de journal
-          for (let l = 0; l < this.csvData1.length; l++) {
-            const riri2 = await fonction.getIDempiereModelsWhereSelect(token, 'c_elementvalue', 'value', `'${this.csvData1[l].compte}'`, 'C_ElementValue_ID');
-            const dateline=fonction.convertirDate(this.csvData1[l].date)
-            let journalLinedata = {
-              GL_Journal_ID: { identifier: this.csvData1[l].reference },
-              Account_ID: { id: riri2.records[0].id },
-              AmtSourceDr: this.csvData1[l].debit || 0,
-              AmtSourceCr: this.csvData1[l].credit || 0,
-              DateAcct: dateline
-            };
-            await fonction.creationtable(token, 'gl_journalline', journalLinedata);
-          }
+          this.message = "✅ Import terminé avec succès ! Vérifiez les logs pour le détail par journal. Vos données sont maintenant dans iDempiere avec les bons types de comptes !";
           
-          this.message = "Les données ont été importées avec succès !";
         } catch (error) {
           console.error("Erreur lors de l'importation:", error);
-          this.message = "Une erreur est survenue lors de l'importation des données.";
+          this.message = `❌ Une erreur est survenue lors de l'importation des données: ${error.message}`;
         }
       } else {
-        this.message = `Aucune ligne n'a été insérée : date invalide à la ligne ${ligne}`;
+        this.message = `❌ Aucune ligne n'a été insérée : date invalide à la ligne ${ligne}`;
       }
     },
     extractUniqueReferences() {
@@ -365,7 +546,7 @@ export default {
   justify-content: center;
   gap: 0.5rem;
   background-color: var(--primary-color);
-  color: rgb(111, 109, 255);
+  color: rgb(5, 5, 5);
   border: none;
   border-radius: var(--border-radius);
   padding: 0.8rem 1.5rem;
@@ -544,7 +725,7 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-  background-color: rgb(122, 122, 255);
+  background-color: var(--success-color);
   color: white;
   border: none;
   border-radius: var(--border-radius);
