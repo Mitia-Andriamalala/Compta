@@ -27,6 +27,44 @@
           </div>
           <span class="notification-badge" v-if="link.notification">{{ link.notification }}</span>
         </router-link>
+
+        <!-- Dropdown pour Facturation -->
+        <div class="nav-dropdown" @mouseenter="showFacturationMenu" @mouseleave="hideFacturationMenu">
+          <div class="nav-link dropdown-trigger" :class="{ 'active': isFacturationActive }">
+            <div class="nav-link-content">
+              <span class="link-icon">📋</span>
+              <span class="link-text">Facturation</span>
+              <span class="dropdown-arrow" :class="{ 'rotate': isFacturationMenuOpen }">▼</span>
+              <div class="link-underline"></div>
+            </div>
+          </div>
+          
+          <transition name="dropdown-fade">
+            <div class="dropdown-menu" v-if="isFacturationMenuOpen">
+              <router-link to="/factures" class="dropdown-item" @click="closeMobileMenu">
+                <span class="dropdown-icon">🧾</span>
+                <div class="dropdown-content">
+                  <span class="dropdown-title">Liste des Factures</span>
+                  <span class="dropdown-desc">Consulter toutes les factures</span>
+                </div>
+              </router-link>
+              <router-link to="/facture-creation" class="dropdown-item" @click="closeMobileMenu">
+                <span class="dropdown-icon">📄</span>
+                <div class="dropdown-content">
+                  <span class="dropdown-title">Nouvelle Facture</span>
+                  <span class="dropdown-desc">Créer une facture</span>
+                </div>
+              </router-link>
+              <router-link to="/reglement" class="dropdown-item" @click="closeMobileMenu">
+                <span class="dropdown-icon">💰</span>
+                <div class="dropdown-content">
+                  <span class="dropdown-title">Nouveau Règlement</span>
+                  <span class="dropdown-desc">Enregistrer un règlement</span>
+                </div>
+              </router-link>
+            </div>
+          </transition>
+        </div>
       </div>
 
       <!-- Section utilisateur -->
@@ -83,6 +121,26 @@
           <span class="notification-badge" v-if="link.notification">{{ link.notification }}</span>
         </router-link>
         
+        <!-- Section Facturation mobile -->
+        <div class="mobile-section">
+          <div class="mobile-section-title">
+            <span class="mobile-icon">📋</span>
+            <span>Facturation</span>
+          </div>
+          <router-link to="/factures" class="mobile-nav-link sub-link" @click="toggleMobileMenu">
+            <span class="mobile-icon">🧾</span>
+            <span class="link-text">Liste des Factures</span>
+          </router-link>
+          <router-link to="/facture-creation" class="mobile-nav-link sub-link" @click="toggleMobileMenu">
+            <span class="mobile-icon">📄</span>
+            <span class="link-text">Nouvelle Facture</span>
+          </router-link>
+          <router-link to="/reglement" class="mobile-nav-link sub-link" @click="toggleMobileMenu">
+            <span class="mobile-icon">💰</span>
+            <span class="link-text">Nouveau Règlement</span>
+          </router-link>
+        </div>
+        
         <!-- Menu utilisateur mobile -->
         <div class="mobile-user-section">
           <div class="mobile-user-profile">
@@ -113,6 +171,8 @@ export default {
     return {
       isMobileMenuOpen: false,
       isUserMenuOpen: false,
+      isFacturationMenuOpen: false,
+      facturationMenuTimeout: null,
       navLinks: [
         { path: '/', icon: '🏠', text: 'Accueil', notification: 0 },
         { path: '/import', icon: '📤', text: 'Import CSV', notification: 2 },
@@ -125,6 +185,10 @@ export default {
   computed: {
     totalNotifications() {
       return this.navLinks.reduce((total, link) => total + link.notification, 0);
+    },
+    isFacturationActive() {
+      const facturationRoutes = ['/factures', '/facture-creation', '/reglement', '/nouvelle-facture'];
+      return facturationRoutes.includes(this.$route.path);
     }
   },
   methods: {
@@ -137,6 +201,7 @@ export default {
     closeMobileMenu() {
       this.isMobileMenuOpen = false;
       this.isUserMenuOpen = false;
+      this.isFacturationMenuOpen = false;
     },
     toggleUserMenu() {
       this.isUserMenuOpen = !this.isUserMenuOpen;
@@ -144,10 +209,24 @@ export default {
     closeUserMenu() {
       this.isUserMenuOpen = false;
     },
+    showFacturationMenu() {
+      if (this.facturationMenuTimeout) {
+        clearTimeout(this.facturationMenuTimeout);
+      }
+      this.isFacturationMenuOpen = true;
+    },
+    hideFacturationMenu() {
+      this.facturationMenuTimeout = setTimeout(() => {
+        this.isFacturationMenuOpen = false;
+      }, 200);
+    },
     logout() {
       console.log('Déconnexion...');
       sessionStorage.removeItem('authToken');
-      this.$router.push('/login');
+      sessionStorage.removeItem('userId');
+      sessionStorage.removeItem('compte');
+      sessionStorage.removeItem('Nomcompte');
+      this.$router.push('/');
       this.closeUserMenu();
       this.closeMobileMenu();
     }
@@ -375,6 +454,109 @@ export default {
   width: 80%;
 }
 
+/* Dropdown Navigation */
+.nav-dropdown {
+  position: relative;
+}
+
+.dropdown-trigger {
+  cursor: pointer;
+}
+
+.dropdown-arrow {
+  font-size: 0.75rem;
+  transition: all 0.3s ease;
+  margin-left: 0.25rem;
+}
+
+.dropdown-arrow.rotate {
+  transform: rotate(180deg);
+}
+
+/* Dropdown Menu */
+.dropdown-fade-enter-active,
+.dropdown-fade-leave-active {
+  transition: all 0.3s ease;
+}
+
+.dropdown-fade-enter-from,
+.dropdown-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 280px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  padding: 0.75rem;
+  margin-top: 0.5rem;
+  z-index: 1000;
+  border: 1px solid #e2e8f0;
+  animation: fadeInDown 0.3s ease-out;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  color: #374151;
+  text-decoration: none;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  margin-bottom: 0.25rem;
+}
+
+.dropdown-item:last-child {
+  margin-bottom: 0;
+}
+
+.dropdown-item:hover {
+  background: #f8fafc;
+  color: #667eea;
+  transform: translateX(4px);
+}
+
+.dropdown-icon {
+  font-size: 1.25rem;
+  width: 2rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.dropdown-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.dropdown-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.dropdown-desc {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
 /* Notification Badge */
 .notification-badge {
   position: absolute;
@@ -529,17 +711,6 @@ export default {
   animation: fadeInDown 0.3s ease-out;
 }
 
-@keyframes fadeInDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 .user-menu-item {
   display: flex;
   align-items: center;
@@ -686,6 +857,39 @@ export default {
   transform: scale(1.1);
 }
 
+/* Mobile Section */
+.mobile-section {
+  border-top: 1px solid #e2e8f0;
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
+
+.mobile-section-title {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 2rem;
+  font-weight: 700;
+  color: #374151;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  margin: 0 1rem 0.5rem 1rem;
+  border-radius: 12px;
+}
+
+.sub-link {
+  padding-left: 3rem;
+  font-size: 0.9rem;
+  background: #f8fafc;
+  margin: 0.25rem 1rem;
+  border-radius: 8px;
+}
+
+.sub-link:hover {
+  background: white;
+  border-left: 4px solid #667eea;
+}
+
 /* Mobile User Section */
 .mobile-user-section {
   border-top: 1px solid #e2e8f0;
@@ -752,6 +956,10 @@ export default {
   .nav-link-content {
     padding: 0.75rem 1rem;
     font-size: 0.8125rem;
+  }
+  
+  .dropdown-menu {
+    min-width: 240px;
   }
 }
 
@@ -820,4 +1028,50 @@ export default {
 .nav-link:nth-child(3) { animation-delay: 0.2s; }
 .nav-link:nth-child(4) { animation-delay: 0.3s; }
 .nav-link:nth-child(5) { animation-delay: 0.4s; }
+
+/* Animation supplémentaire pour les dropdowns */
+@keyframes dropdownSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.dropdown-menu {
+  animation: dropdownSlide 0.3s ease-out;
+}
+
+/* Amélioration du hover sur mobile */
+@media (hover: none) {
+  .nav-link:hover .nav-link-content,
+  .dropdown-item:hover,
+  .mobile-nav-link:hover {
+    transform: none;
+  }
+}
+
+/* Style pour les états actifs des éléments de facturation */
+.nav-dropdown .active .nav-link-content {
+  color: #667eea;
+  background: white;
+  border-color: #667eea;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+}
+
+.nav-dropdown .active .link-underline {
+  width: 80%;
+}
+
+/* Responsive pour les dropdowns */
+@media (max-width: 1200px) {
+  .dropdown-menu {
+    right: 0;
+    left: auto;
+    min-width: 260px;
+  }
+}
 </style>

@@ -1,302 +1,323 @@
 <template>
-  <div class="page-container">
-    <!-- Section de Debug - Supprimez cette section une fois que tout fonctionne -->
-    <div v-if="debugMode" class="debug-panel" style="background: #fff3cd; border: 2px solid #ffc107; padding: 1rem; margin: 1rem; border-radius: 8px;">
-      <h3>🔧 Mode Debug</h3>
-      <div style="font-size: 0.8rem; font-family: monospace;">
-        <p><strong>Année sélectionnée:</strong> {{ selectedYear }}</p>
-        <p><strong>Années disponibles:</strong> {{ availableYears.join(', ') }}</p>
-        <p><strong>Données brutes:</strong> {{ financialData.length }} éléments</p>
-        <p><strong>Données filtrées:</strong> {{ filteredData.length }} éléments</p>
-        <p><strong>Is Loading:</strong> {{ isLoading }}</p>
-        <p><strong>Error:</strong> {{ error }}</p>
-        <p><strong>Type de graphique:</strong> {{ chartType }}</p>
-        <details style="margin-top: 1rem;">
-          <summary>Voir données brutes</summary>
-          <pre style="background: #f8f9fa; padding: 1rem; overflow: auto; max-height: 200px;">{{ JSON.stringify(filteredData, null, 2) }}</pre>
-        </details>
-      </div>
-      <button @click="debugMode = false" style="margin-top: 0.5rem; padding: 0.25rem 0.5rem; background: #dc3545; color: white; border: none; border-radius: 4px;">
-        Fermer Debug
-      </button>
-    </div>
-
+  <div class="financial-dashboard">
     <!-- Header Section -->
-    <div class="header-section">
+    <div class="dashboard-header">
       <div class="header-content">
-        <div class="title-section">
-          <h1 class="page-title">
-            <span class="title-icon">📊</span>
-            Tableau de bord financier
-          </h1>
-          <p class="page-subtitle">Analyse des performances financières en temps réel</p>
-        </div>
+        <h1 class="dashboard-title">
+          <span class="title-icon">📊</span>
+          Tableau de Bord Financier
+        </h1>
         <div class="header-controls">
-        <div class="year-filter">
-          <label for="year-select" class="filter-label">Période d'analyse</label>
-          <div class="select-wrapper">
-            <select v-model="selectedYear" id="year-select" class="year-select" :disabled="isLoading">
-              <option v-for="year in availableYears" :key="year" :value="year">
+          <!-- Year Selector -->
+          <div class="year-selector">
+            <label for="year-select" class="year-label">Année :</label>
+            <select 
+              id="year-select" 
+              v-model="selectedYear" 
+              class="year-select"
+              :disabled="isLoading"
+            >
+              <option value="" disabled>Sélectionner une année</option>
+              <option 
+                v-for="year in availableYears" 
+                :key="year" 
+                :value="parseInt(year)"
+              >
                 {{ year }}
               </option>
             </select>
           </div>
-        </div>
-        <div class="action-buttons">
-          <button class="btn btn-refresh" @click="refreshData" :disabled="isLoading">
-            <span class="btn-icon" :class="{ 'spinning': isLoading }">🔄</span>
-            Actualiser
-          </button>
-          <button class="btn btn-debug" @click="debugMode = !debugMode" :class="{ 'active': debugMode }">
-            🔧 Debug
-          </button>
-          <div class="export-dropdown" ref="exportDropdown">
-            <button class="btn btn-export" @click="toggleExportMenu">
-              <span class="btn-icon">📤</span>
-              Exporter
-              <span class="dropdown-arrow">▼</span>
+          
+          <!-- Actions -->
+          <div class="header-actions">
+            <button 
+              @click="refreshData" 
+              class="btn btn-refresh"
+              :disabled="isLoading"
+            >
+              <span class="btn-icon">🔄</span>
+              {{ isLoading ? 'Chargement...' : 'Actualiser' }}
             </button>
-            <div v-if="showExportMenu" class="export-menu">
-              <button @click="exportData('excel')" class="export-option">
-                <span class="export-icon">📊</span>
-                Excel (.xlsx)
+            
+            <!-- Export Dropdown -->
+            <div class="export-dropdown" ref="exportDropdown">
+              <button 
+                @click="toggleExportMenu" 
+                class="btn btn-export"
+                :disabled="!filteredData.length"
+              >
+                <span class="btn-icon">📤</span>
+                Exporter
+                <span class="dropdown-arrow">▼</span>
               </button>
-              <button @click="exportData('csv')" class="export-option">
-                <span class="export-icon">📄</span>
-                CSV (.csv)
-              </button>
-              <button @click="exportData('pdf')" class="export-option">
-                <span class="export-icon">📑</span>
-                PDF (.pdf)
-              </button>
-              <button @click="exportData('json')" class="export-option">
-                <span class="export-icon">⚙️</span>
-                JSON (.json)
-              </button>
+              
+              <div v-if="showExportMenu" class="dropdown-menu">
+                <button @click="exportData('csv')" class="dropdown-item">
+                  <span class="dropdown-icon">📄</span>
+                  Exporter en CSV
+                </button>
+                <button @click="exportData('excel')" class="dropdown-item">
+                  <span class="dropdown-icon">📊</span>
+                  Exporter en Excel
+                </button>
+                <button @click="exportData('pdf')" class="dropdown-item">
+                  <span class="dropdown-icon">📑</span>
+                  Exporter en PDF
+                </button>
+                <button @click="exportData('json')" class="dropdown-item">
+                  <span class="dropdown-icon">🔧</span>
+                  Exporter en JSON
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- Loading State -->
+    <div v-if="isLoading" class="loading-state">
+      <div class="loading-spinner"></div>
+      <p class="loading-text">Chargement des données financières...</p>
+    </div>
+
+    <!-- Error State -->
+    <div v-else-if="error" class="error-state">
+      <div class="error-icon">⚠️</div>
+      <h3 class="error-title">Erreur de chargement</h3>
+      <p class="error-message">{{ error }}</p>
+      <button @click="refreshData" class="btn btn-retry">
+        <span class="btn-icon">🔄</span>
+        Réessayer
+      </button>
+    </div>
+
     <!-- Main Content -->
-    <div class="main-content">
-      <!-- Messages d'état -->
-      <div v-if="error" class="error-state">
-        <div class="error-icon">⚠️</div>
-        <h3>Erreur de chargement</h3>
-        <p>{{ error }}</p>
-        <button @click="fetchData" class="retry-btn">Réessayer</button>
-      </div>
-
-      <!-- Indicateur de chargement -->
-      <div v-if="isLoading" class="loading-state">
-        <div class="spinner"></div>
-        <h3>Chargement des données financières</h3>
-        <p>Analyse en cours...</p>
-      </div>
-
-      <!-- Message si pas de données -->
-      <div v-else-if="!error && filteredData.length === 0 && !isLoading" class="empty-data-state">
-        <div class="empty-icon">📈</div>
-        <h3>Aucune donnée financière</h3>
-        <p>Aucune donnée trouvée pour l'année {{ selectedYear }}</p>
-        <div class="empty-actions">
-          <button @click="fetchData" class="retry-btn">Recharger</button>
-          <button @click="debugMode = true" class="debug-btn">Voir Debug</button>
-        </div>
-      </div>
-
-      <!-- Contenu principal -->
-      <div v-else-if="!error && filteredData.length > 0">
-        
-        <!-- KPI Cards -->
-        <div class="kpi-section">
-          <div class="kpi-card revenue">
-            <div class="card-header">
-              <div class="kpi-icon">📈</div>
-              <div class="kpi-trend positive">
-                <span class="trend-indicator">↗️</span>
-                +12.5%
-              </div>
-            </div>
-            <div class="kpi-content">
-              <h3 class="kpi-label">Chiffre d'affaires</h3>
-              <div class="kpi-value">{{ formatCurrency(totals.chiffreAffaires) }}</div>
-              <p class="kpi-description">Total des revenus {{ selectedYear }}</p>
+    <div v-else-if="selectedYear && filteredData.length > 0" class="dashboard-content">
+      
+      <!-- KPI Cards Section -->
+      <div class="kpi-section">
+        <!-- KPI Chiffre d'affaires -->
+        <div class="kpi-card revenue" @click="navigateToDetail('revenue')" style="cursor: pointer;">
+          <div class="card-header">
+            <div class="kpi-icon">📈</div>
+            <div class="kpi-trend positive">
+              <span class="trend-indicator">↗️</span>
+              +12.5%
             </div>
           </div>
-
-          <div class="kpi-card expenses">
-            <div class="card-header">
-              <div class="kpi-icon">📉</div>
-              <div class="kpi-trend negative">
-                <span class="trend-indicator">↘️</span>
-                -3.2%
-              </div>
-            </div>
-            <div class="kpi-content">
-              <h3 class="kpi-label">Charges totales</h3>
-              <div class="kpi-value">{{ formatCurrency(totals.charges) }}</div>
-              <p class="kpi-description">Total des dépenses {{ selectedYear }}</p>
-            </div>
-          </div>
-
-          <div class="kpi-card profit" :class="{ 'positive-result': totals.resultatNet > 0, 'negative-result': totals.resultatNet < 0 }">
-            <div class="card-header">
-              <div class="kpi-icon">🎯</div>
-              <div class="kpi-trend" :class="totals.resultatNet > 0 ? 'positive' : 'negative'">
-                <span class="trend-indicator">{{ totals.resultatNet > 0 ? '↗️' : '↘️' }}</span>
-                {{ totals.resultatNet > 0 ? '+' : '' }}18.7%
-              </div>
-            </div>
-            <div class="kpi-content">
-              <h3 class="kpi-label">Résultat net</h3>
-              <div class="kpi-value" :class="{ 'positive': totals.resultatNet > 0, 'negative': totals.resultatNet < 0 }">
-                {{ formatCurrency(totals.resultatNet) }}
-              </div>
-              <p class="kpi-description">Bénéfice après charges</p>
-            </div>
-          </div>
-
-          <div class="kpi-card margin">
-            <div class="card-header">
-              <div class="kpi-icon">💹</div>
-              <div class="kpi-trend positive">
-                <span class="trend-indicator">↗️</span>
-                +2.1%
-              </div>
-            </div>
-            <div class="kpi-content">
-              <h3 class="kpi-label">Marge nette</h3>
-              <div class="kpi-value">{{ calculateMargin() }}%</div>
-              <p class="kpi-description">Rentabilité globale</p>
+          <div class="kpi-content">
+            <h3 class="kpi-label">Chiffre d'affaires</h3>
+            <div class="kpi-value">{{ formatCurrency(totals.chiffreAffaires) }}</div>
+            <p class="kpi-description">Total des revenus {{ selectedYear }}</p>
+            <div class="click-indicator">
+              <span class="click-icon">👆</span>
+              Cliquez pour voir le détail
             </div>
           </div>
         </div>
 
-        <!-- Graphique Section -->
-        <div class="chart-section">
-          <div class="section-header">
-            <div class="section-title">
-              <h2>Évolution financière</h2>
-              <p class="section-subtitle">Analyse mensuelle des performances</p>
-            </div>
-            <div class="chart-controls">
-              <button 
-                class="chart-btn" 
-                :class="{ 'active': chartType === 'line' }"
-                @click="changeChartType('line')"
-              >
-                📈 Ligne
-              </button>
-              <button 
-                class="chart-btn" 
-                :class="{ 'active': chartType === 'bar' }"
-                @click="changeChartType('bar')"
-              >
-                📊 Barres
-              </button>
+        <!-- KPI Charges -->
+        <div class="kpi-card expenses" @click="navigateToDetail('expense')" style="cursor: pointer;">
+          <div class="card-header">
+            <div class="kpi-icon">📉</div>
+            <div class="kpi-trend negative">
+              <span class="trend-indicator">↘️</span>
+              -3.2%
             </div>
           </div>
-          <div class="chart-container">
-            <canvas ref="chartCanvas"></canvas>
+          <div class="kpi-content">
+            <h3 class="kpi-label">Charges totales</h3>
+            <div class="kpi-value">{{ formatCurrency(totals.charges) }}</div>
+            <p class="kpi-description">Total des dépenses {{ selectedYear }}</p>
+            <div class="click-indicator">
+              <span class="click-icon">👆</span>
+              Cliquez pour voir le détail
+            </div>
           </div>
         </div>
 
-        <!-- Tableau mensuel en cartes -->
-        <div class="monthly-section">
-          <div class="section-header">
-            <div class="section-title">
-              <h2>Détail mensuel</h2>
-              <p class="section-subtitle">Performance mois par mois</p>
-            </div>
-            <div class="search-container">
-              <div class="search-icon">🔍</div>
-              <input type="text" v-model="searchQuery" placeholder="Rechercher un mois..." class="search-input">
-              <div class="search-clear" v-if="searchQuery" @click="searchQuery = ''">✕</div>
+        <!-- KPI Résultat Net -->
+        <div class="kpi-card profit" :class="{ 'positive-result': totals.resultatNet > 0, 'negative-result': totals.resultatNet < 0 }" @click="navigateToDetail('profit')" style="cursor: pointer;">
+          <div class="card-header">
+            <div class="kpi-icon">🎯</div>
+            <div class="kpi-trend" :class="totals.resultatNet > 0 ? 'positive' : 'negative'">
+              <span class="trend-indicator">{{ totals.resultatNet > 0 ? '↗️' : '↘️' }}</span>
+              {{ totals.resultatNet > 0 ? '+' : '' }}18.7%
             </div>
           </div>
+          <div class="kpi-content">
+            <h3 class="kpi-label">Résultat net</h3>
+            <div class="kpi-value" :class="{ 'positive': totals.resultatNet > 0, 'negative': totals.resultatNet < 0 }">
+              {{ formatCurrency(totals.resultatNet) }}
+            </div>
+            <p class="kpi-description">Bénéfice après charges</p>
+            <div class="click-indicator">
+              <span class="click-icon">👆</span>
+              Cliquez pour voir le détail
+            </div>
+          </div>
+        </div>
 
-          <div class="monthly-grid">
-            <div 
-              v-for="(data, index) in filteredMonthlyData" 
-              :key="index"
-              class="monthly-card"
-              :class="{ 'positive-month': data.resultatNet > 0, 'negative-month': data.resultatNet < 0 }"
+        <!-- KPI Marge -->
+        <div class="kpi-card margin" @click="navigateToDetail('margin')" style="cursor: pointer;">
+          <div class="card-header">
+            <div class="kpi-icon">💹</div>
+            <div class="kpi-trend positive">
+              <span class="trend-indicator">↗️</span>
+              +2.1%
+            </div>
+          </div>
+          <div class="kpi-content">
+            <h3 class="kpi-label">Marge nette</h3>
+            <div class="kpi-value">{{ calculateMargin() }}%</div>
+            <p class="kpi-description">Rentabilité globale</p>
+            <div class="click-indicator">
+              <span class="click-icon">👆</span>
+              Cliquez pour voir le détail
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chart Section -->
+      <div class="chart-section">
+        <div class="chart-header">
+          <h2 class="chart-title">
+            <span class="chart-icon">📈</span>
+            Évolution financière {{ selectedYear }}
+          </h2>
+          <div class="chart-controls">
+            <button 
+              @click="changeChartType('line')" 
+              :class="['chart-type-btn', { active: chartType === 'line' }]"
             >
-              <div class="monthly-header">
-                <div class="month-badge">{{ formatDate(data.mois) }}</div>
-                <div class="result-indicator" :class="{ 'positive': data.resultatNet > 0, 'negative': data.resultatNet < 0 }">
-                  {{ data.resultatNet > 0 ? '📈' : '📉' }}
-                </div>
-              </div>
-
-              <div class="monthly-details">
-                <div class="detail-row">
-                  <span class="detail-label">Chiffre d'affaires:</span>
-                  <span class="detail-value revenue">{{ formatCurrency(data.chiffreAffaires) }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Charges:</span>
-                  <span class="detail-value expenses">{{ formatCurrency(data.charges) }}</span>
-                </div>
-                <div class="detail-divider"></div>
-                <div class="detail-row final-result">
-                  <span class="detail-label">Résultat net:</span>
-                  <span class="detail-value result" :class="{ 'positive': data.resultatNet > 0, 'negative': data.resultatNet < 0 }">
-                    {{ formatCurrency(data.resultatNet) }}
-                  </span>
-                </div>
-              </div>
-
-              <div class="monthly-footer">
-                <div class="margin-info">
-                  <span class="margin-label">Marge:</span>
-                  <span class="margin-badge" :class="getMarginClass(data)">
-                    {{ formatMargin(data) }}%
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Résumé annuel -->
-          <div class="yearly-summary">
-            <div class="summary-card">
-              <h3>Résumé {{ selectedYear }}</h3>
-              <div class="summary-content">
-                <div class="summary-item">
-                  <span class="summary-label">Total CA:</span>
-                  <span class="summary-value revenue">{{ formatCurrency(totals.chiffreAffaires) }}</span>
-                </div>
-                <div class="summary-item">
-                  <span class="summary-label">Total Charges:</span>
-                  <span class="summary-value expenses">{{ formatCurrency(totals.charges) }}</span>
-                </div>
-                <div class="summary-item">
-                  <span class="summary-label">Résultat Net:</span>
-                  <span class="summary-value result" :class="{ 'positive': totals.resultatNet > 0, 'negative': totals.resultatNet < 0 }">
-                    {{ formatCurrency(totals.resultatNet) }}
-                  </span>
-                </div>
-                <div class="summary-item">
-                  <span class="summary-label">Marge Nette:</span>
-                  <span class="summary-value margin">{{ calculateMargin() }}%</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Empty state pour la recherche -->
-          <div v-if="filteredMonthlyData.length === 0 && searchQuery" class="empty-state">
-            <div class="empty-icon">🔍</div>
-            <h3>Aucun mois trouvé</h3>
-            <p>Essayez de modifier votre recherche</p>
-          </div>
+              📈 Courbes
+            </button>
+            <button 
+              @click="changeChartType('bar')" 
+              :class="['chart-type-btn', { active: chartType === 'bar' }]"
+            >
+              📊 Barres
+            </button>
           </div>
         </div>
+        
+        <div class="chart-container">
+          <canvas ref="chartCanvas" class="financial-chart"></canvas>
+        </div>
       </div>
+
+      <!-- Monthly Details Table -->
+      <div class="table-section">
+        <div class="table-header">
+          <h2 class="table-title">
+            <span class="table-icon">📋</span>
+            Détail mensuel {{ selectedYear }}
+          </h2>
+          <div class="table-controls">
+            <div class="search-box">
+              <input 
+                v-model="searchQuery" 
+                type="text" 
+                placeholder="Rechercher un mois..." 
+                class="search-input"
+              >
+              <span class="search-icon">🔍</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="table-container">
+          <table class="financial-table">
+            <thead>
+              <tr>
+                <th class="month-col">Mois</th>
+                <th class="amount-col">Chiffre d'affaires</th>
+                <th class="amount-col">Charges</th>
+                <th class="amount-col">Résultat net</th>
+                <th class="margin-col">Marge (%)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr 
+                v-for="(item, index) in filteredMonthlyData" 
+                :key="index"
+                class="table-row"
+                :class="{ 'profit-row': item.resultatNet > 0, 'loss-row': item.resultatNet < 0 }"
+              >
+                <td class="month-cell">
+                  <div class="month-wrapper">
+                    <span class="month-name">{{ formatDate(item.mois) }}</span>
+                    <span class="month-date">{{ item.mois }}</span>
+                  </div>
+                </td>
+                <td class="amount-cell revenue">
+                  <span class="amount-value">{{ formatCurrency(item.chiffreAffaires) }}</span>
+                </td>
+                <td class="amount-cell expense">
+                  <span class="amount-value">{{ formatCurrency(item.charges) }}</span>
+                </td>
+                <td class="amount-cell result" :class="{ 'positive': item.resultatNet > 0, 'negative': item.resultatNet < 0 }">
+                  <span class="amount-value">{{ formatCurrency(item.resultatNet) }}</span>
+                </td>
+                <td class="margin-cell">
+                  <div class="margin-wrapper" :class="getMarginClass(item)">
+                    <span class="margin-value">{{ formatMargin(item) }}%</span>
+                    <div class="margin-bar">
+                      <div 
+                        class="margin-fill" 
+                        :style="{ width: Math.min(Math.abs(formatMargin(item)), 100) + '%' }"
+                      ></div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="totals-row">
+                <td class="total-label">
+                  <strong>TOTAL {{ selectedYear }}</strong>
+                </td>
+                <td class="total-amount revenue">
+                  <strong>{{ formatCurrency(totals.chiffreAffaires) }}</strong>
+                </td>
+                <td class="total-amount expense">
+                  <strong>{{ formatCurrency(totals.charges) }}</strong>
+                </td>
+                <td class="total-amount result" :class="{ 'positive': totals.resultatNet > 0, 'negative': totals.resultatNet < 0 }">
+                  <strong>{{ formatCurrency(totals.resultatNet) }}</strong>
+                </td>
+                <td class="total-margin">
+                  <strong class="margin-total">{{ calculateMargin() }}%</strong>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div v-else-if="selectedYear && filteredData.length === 0" class="empty-state">
+      <div class="empty-icon">📊</div>
+      <h3 class="empty-title">Aucune donnée disponible</h3>
+      <p class="empty-message">
+        Aucune donnée financière trouvée pour l'année {{ selectedYear }}.
+      </p>
+      <button @click="refreshData" class="btn btn-reload">
+        <span class="btn-icon">🔄</span>
+        Recharger les données
+      </button>
+    </div>
+
+    <!-- No Year Selected -->
+    <div v-else class="no-year-state">
+      <div class="no-year-icon">📅</div>
+      <h3 class="no-year-title">Sélectionnez une année</h3>
+      <p class="no-year-message">
+        Veuillez sélectionner une année pour afficher les données financières.
+      </p>
     </div>
   </div>
 </template>
@@ -308,20 +329,19 @@ import axios from 'axios'
 export default {
   name: 'FinancialDashboard',
   data() {
-  return {
-    selectedYear: null,
-    chart: null,
-    financialData: [],
-    availableYears: [],
-    isLoading: false,
-    error: null,
-    searchQuery: '',
-    showExportMenu: false,
-    debugMode: false,
-    chartType: 'line' // Type de graphique par défaut
-  }
-},
-
+    return {
+      selectedYear: null,
+      chart: null,
+      financialData: [],
+      availableYears: [],
+      isLoading: false,
+      error: null,
+      searchQuery: '',
+      showExportMenu: false,
+      debugMode: false,
+      chartType: 'line' // Type de graphique par défaut
+    }
+  },
   computed: {
     filteredData() {
       console.log('🔍 Filtrage des données...');
@@ -339,13 +359,10 @@ export default {
       }
       
       const filtered = this.financialData.filter(item => {
-        // Support des deux formats de date
         let itemYear;
         if (item.mois.includes('-')) {
-          // Format YYYY-MM
           itemYear = parseInt(item.mois.substring(0, 4));
         } else {
-          // Autre format
           itemYear = new Date(item.mois).getFullYear();
         }
         
@@ -377,7 +394,6 @@ export default {
     }
   },
   methods: {
-    
     formatCurrency(value) {
       if (typeof value !== 'number' || isNaN(value)) return '0,00 €';
       return new Intl.NumberFormat('fr-FR', {
@@ -387,7 +403,6 @@ export default {
     },
     formatDate(dateString) {
       try {
-        // Support du format YYYY-MM
         if (dateString.match(/^\d{4}-\d{2}$/)) {
           const [year, month] = dateString.split('-');
           const date = new Date(parseInt(year), parseInt(month) - 1);
@@ -395,7 +410,6 @@ export default {
             month: 'long'
           });
         }
-        // Format standard
         return new Date(dateString).toLocaleDateString('fr-FR', { 
           month: 'long'
         });
@@ -425,25 +439,19 @@ export default {
     toggleExportMenu() {
       this.showExportMenu = !this.showExportMenu;
     },
-    // NOUVELLE MÉTHODE: Changer le type de graphique avec délai
     changeChartType(type) {
       console.log('🔄 Changement de type de graphique:', this.chartType, '→', type);
       this.chartType = type;
-      
-      // Forcer la destruction complète avant de recréer
       if (this.chart) {
         this.chart.destroy();
         this.chart = null;
       }
-      
-      // Délai pour s'assurer que la destruction est complète
       setTimeout(() => {
         this.createChart();
       }, 100);
     },
     exportData(format) {
       this.showExportMenu = false;
-      
       const fileName = `tableau-bord-financier-${this.selectedYear}`;
       const exportData = {
         summary: {
@@ -461,7 +469,6 @@ export default {
           margin: this.formatMargin(item)
         }))
       };
-
       switch(format) {
         case 'excel':
           this.exportToExcel(exportData, fileName);
@@ -480,7 +487,6 @@ export default {
       }
     },
     exportToExcel(data, fileName) {
-      // Création des données pour Excel
       const worksheet = [
         ['Tableau de Bord Financier', '', '', '', ''],
         ['Année:', data.summary.year, '', '', ''],
@@ -501,12 +507,9 @@ export default {
           item.margin + '%'
         ])
       ];
-
-      // Conversion en CSV pour Excel
       const csvContent = worksheet.map(row => 
         row.map(cell => `"${cell}"`).join(',')
       ).join('\n');
-      
       this.downloadFile(csvContent, `${fileName}.csv`, 'text/csv;charset=utf-8;');
     },
     exportToCSV(data, fileName) {
@@ -514,11 +517,9 @@ export default {
       const csvContent = csvHeader + data.monthlyData.map(item => 
         `"${item.month}","${item.revenue}","${item.expenses}","${item.netResult}","${item.margin}%"`
       ).join('\n');
-      
       this.downloadFile(csvContent, `${fileName}.csv`, 'text/csv;charset=utf-8;');
     },
     exportToPDF(data, fileName) {
-      // Création d'un contenu HTML pour PDF
       const htmlContent = `
         <!DOCTYPE html>
         <html>
@@ -542,7 +543,6 @@ export default {
             <h1>Tableau de Bord Financier</h1>
             <h2>Année ${data.summary.year}</h2>
           </div>
-          
           <div class="summary">
             <h3>Résumé Annuel</h3>
             <div class="summary-item">
@@ -562,7 +562,6 @@ export default {
               <strong>${data.summary.margin}%</strong>
             </div>
           </div>
-
           <h3>Détail Mensuel</h3>
           <table>
             <thead>
@@ -589,8 +588,6 @@ export default {
         </body>
         </html>
       `;
-      
-      // Ouvrir dans une nouvelle fenêtre pour impression en PDF
       const printWindow = window.open('', '_blank');
       printWindow.document.write(htmlContent);
       printWindow.document.close();
@@ -604,7 +601,6 @@ export default {
         exportDate: new Date().toISOString(),
         ...data
       }, null, 2);
-      
       this.downloadFile(jsonContent, `${fileName}.json`, 'application/json;charset=utf-8;');
     },
     downloadFile(content, fileName, mimeType) {
@@ -618,369 +614,280 @@ export default {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     },
-    // Remplacez votre méthode fetchData() par cette version debug avancée
-async fetchData() {
-  console.log('🚀 Début du chargement des données...');
-  this.isLoading = true;
-  this.error = null;
-  
-  try {
-    const token = sessionStorage.getItem('authToken');
-    
-    if (!token) {
-      throw new Error('Token d\'authentification manquant');
-    }
-
-    console.log('🔑 Token trouvé, récupération des comptes...');
-    
-    const accountsRes = await axios.get('/api/v1/models/C_ElementValue', {
-      params: {
-        'fields': 'C_ElementValue_ID,Value,Name,AccountType'
-      },
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
-    
-    console.log('📊 Comptes récupérés:', accountsRes.data.records?.length);
-    
-    // CORRECTION MAJEURE - Gérer AccountType comme objet ET classification automatique
-    // Remplacez cette section dans votre fetchData() :
-
-// CORRECTION MAJEURE - Classification basée sur les numéros de comptes français
-const accountTypeMap = {};
-const typeCount = { R: 0, E: 0, A: 0, L: 0, other: 0 };
-
-// Fonction de classification automatique basée sur le plan comptable français
-const getCorrectAccountType = (account) => {
-  const accountNumber = account.Value;
-  
-  // Classification française par classe de comptes
-  if (accountNumber.startsWith('1') || accountNumber.startsWith('2') || accountNumber.startsWith('3')) {
-    return 'A'; // Actif (Assets) - Comptes de bilan
-  }
-  if (accountNumber.startsWith('4')) {
-    return 'L'; // Passif (Liability) - Comptes de tiers
-  }
-  if (accountNumber.startsWith('5')) {
-    return 'A'; // Actif (Assets) - Comptes financiers
-  }
-  if (accountNumber.startsWith('6')) {
-    return 'E'; // Charges (Expense)
-  }
-  if (accountNumber.startsWith('7')) {
-    return 'R'; // Produits (Revenue)
-  }
-  
-  // Fallback sur le type configuré dans iDempiere (même s'il semble incorrect)
-  return account.AccountType?.id || account.AccountType || 'A';
-};
-
-accountsRes.data.records.forEach(ev => {
-  // Récupérer le type original (même s'il est incorrect)
-  const originalType = ev.AccountType?.id || ev.AccountType;
-  
-  // Appliquer la classification automatique correcte
-  const correctedType = getCorrectAccountType(ev);
-  
-  // Utiliser l'ID correct de l'API
-  const accountId = ev.id; // API retourne directement "id"
-  
-  accountTypeMap[accountId] = correctedType;
-  
-  if (correctedType === 'R') typeCount.R++;
-  else if (correctedType === 'E') typeCount.E++;
-  else if (correctedType === 'A') typeCount.A++;
-  else if (correctedType === 'L') typeCount.L++;
-  else typeCount.other++;
-  
-  // Debug détaillé pour voir les classifications
-  console.log(`📊 Compte ${ev.Value} "${ev.Name}": ${originalType} → ${correctedType} [ID: ${accountId}]`);
-});
-
-console.log('📈 Types de comptes après classification automatique:', typeCount);
-console.log('🗺️ Mapping des comptes (AUTO-CLASSIFIÉ):', accountTypeMap);
-
-console.log('📈 Types de comptes après correction:', typeCount);
-console.log('🗺️ Mapping des comptes (CORRIGÉ):', accountTypeMap);
-
-    // Récupérer toutes les données d'abord pour déterminer les années disponibles
-    console.log('📈 Récupération des écritures comptables...');
-    
-    // CORRECTION: Essayer d'abord Fact_Acct, puis GL_JournalLine en fallback
-    let factRes;
-    try {
-      factRes = await axios.get('/api/v1/models/Fact_Acct', {
-        params: {
-          '$filter': `AD_Client_ID eq 11 and AD_Org_ID eq 11 and PostingType eq 'A'`
-        },
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-    } catch (factError) {
-      console.log('⚠️ Erreur avec Fact_Acct, fallback vers GL_JournalLine');
-      factRes = { data: { records: [] } };
-    }
-    
-    let factAcctData = factRes.data.records || [];
-    console.log('💾 Écritures Fact_Acct récupérées:', factAcctData?.length);
-    
-    // Si pas d'écritures dans Fact_Acct, essayer GL_JournalLine
-    if (!factAcctData || factAcctData.length === 0) {
-      console.log('🔄 Aucune écriture dans Fact_Acct, récupération depuis GL_JournalLine...');
-      
+    async fetchData() {
+      console.log('🚀 Début du chargement des données...');
+      this.isLoading = true;
+      this.error = null;
       try {
-        const journalLineRes = await axios.get('/api/v1/models/GL_JournalLine', {
+        const token = sessionStorage.getItem('authToken');
+        if (!token) {
+          throw new Error('Token d\'authentification manquant');
+        }
+        console.log('🔑 Token trouvé, récupération des comptes...');
+        const accountsRes = await axios.get('/api/v1/models/C_ElementValue', {
           params: {
-            '$expand': 'GL_Journal_ID,Account_ID'
+            '$filter': 'AD_Client_ID eq 11',
+            'fields': 'C_ElementValue_ID,Value,Name,AccountType'
           },
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
-        
-        const journalLines = journalLineRes.data.records || [];
-        console.log('💾 Lignes de journal récupérées:', journalLines?.length);
-        
-        // Convertir les lignes de journal au format Fact_Acct
-        factAcctData = journalLines.map(line => ({
-          id: line.id,
-          Account_ID: line.Account_ID,
-          AmtAcctCr: line.AmtSourceCr || 0,
-          AmtAcctDr: line.AmtSourceDr || 0,
-          DateAcct: line.DateAcct,
-          PostingType: 'A', // Mode actual
-          AD_Client_ID: { id: 11 },
-          AD_Org_ID: { id: 11 }
-        }));
-        
-        console.log('✅ Conversion des lignes de journal terminée:', factAcctData.length, 'écritures');
-        
-      } catch (journalError) {
-        console.error('❌ Erreur lors de la récupération des lignes de journal:', journalError);
-        factAcctData = [];
-      }
-    }
-    console.log('💾 Écritures récupérées:', factAcctData?.length);
-    
-    // DEBUG AVANCÉ - Analyser les écritures
-    if (factAcctData && factAcctData.length > 0) {
-      console.log('🔍 Échantillon d\'écritures:', factAcctData.slice(0, 3));
-      
-      // Analyser les montants
-      const amountAnalysis = {
-        withAmtAcctCr: 0,
-        withAmtAcctDr: 0,
-        totalCr: 0,
-        totalDr: 0,
-        accountsUsed: new Set(),
-        monthsFound: new Set()
-      };
-      
-      factAcctData.forEach(line => {
-        if (line.AmtAcctCr && line.AmtAcctCr !== 0) {
-          amountAnalysis.withAmtAcctCr++;
-          amountAnalysis.totalCr += line.AmtAcctCr;
-        }
-        if (line.AmtAcctDr && line.AmtAcctDr !== 0) {
-          amountAnalysis.withAmtAcctDr++;
-          amountAnalysis.totalDr += line.AmtAcctDr;
-        }
-        
-        const accountId = line.Account_ID?.id || line.Account_ID;
-        amountAnalysis.accountsUsed.add(accountId);
-        amountAnalysis.monthsFound.add(line.DateAcct.substring(0, 7));
-      });
-      
-      console.log('💰 Analyse des montants:', {
-        lignesAvecCredit: amountAnalysis.withAmtAcctCr,
-        lignesAvecDebit: amountAnalysis.withAmtAcctDr,
-        totalCredit: amountAnalysis.totalCr,
-        totalDebit: amountAnalysis.totalDr,
-        comptesUtilises: amountAnalysis.accountsUsed.size,
-        moisTrouves: Array.from(amountAnalysis.monthsFound).sort()
-      });
-    }
-
-    // Extraire les années disponibles
-    const yearsSet = new Set();
-    factAcctData.forEach(line => {
-      const year = line.DateAcct.substring(0, 4);
-      yearsSet.add(year);
-    });
-    
-    this.availableYears = Array.from(yearsSet).sort((a, b) => b.localeCompare(a));
-    console.log('📅 Années disponibles:', this.availableYears);
-
-    // Sélectionner automatiquement l'année la plus récente si aucune n'est sélectionnée
-    if (!this.selectedYear && this.availableYears.length > 0) {
-      this.selectedYear = parseInt(this.availableYears[0]);
-      console.log('🎯 Année auto-sélectionnée:', this.selectedYear);
-    }
-
-    // Filtrer par année sélectionnée
-    if (this.selectedYear) {
-      const yearStart = `${this.selectedYear}-01-01`;
-      const yearEnd = `${this.selectedYear}-12-31`;
-      
-      const filteredFactData = factAcctData.filter(line => {
-        return line.DateAcct >= yearStart && line.DateAcct <= yearEnd;
-      });
-      
-      console.log(`📊 Écritures pour ${this.selectedYear}:`, filteredFactData.length);
-
-      const monthlySummary = {};
-      const debugSummary = {
-        revenueLines: 0,
-        expenseLines: 0,
-        unknownTypeLines: 0,
-        linesWithoutAmount: 0,
-        totalRevenueAmount: 0,
-        totalExpenseAmount: 0,
-        accountMatches: 0,
-        accountMismatches: 0
-      };
-      
-      filteredFactData.forEach(line => {
-        const month = line.DateAcct.substring(0, 7); // Format YYYY-MM
-        const accountId = line.Account_ID?.id || line.Account_ID;
-        const type = accountTypeMap[accountId];
-        
-        // CORRECTION : Debug amélioré pour voir les correspondances
-        if (!type) {
-          debugSummary.unknownTypeLines++;
-          debugSummary.accountMismatches++;
-          console.log('⚠️ Compte sans type:', { 
-            accountId, 
-            lineAccount: line.Account_ID,
-            availableKeys: Object.keys(accountTypeMap).slice(0, 5)
-          });
-        } else {
-          debugSummary.accountMatches++;
-          console.log(`✅ Match trouvé - Compte ${accountId}: Type = ${type}`);
-        }
-        
-        if (!line.AmtAcctCr && !line.AmtAcctDr) {
-          debugSummary.linesWithoutAmount++;
-        }
-        
-        if (!monthlySummary[month]) {
-          monthlySummary[month] = { 
-            chiffre_affaires: 0, 
-            charges: 0,
-            debug: {
-              revenueEntries: [],
-              expenseEntries: []
-            }
-          };
-        }
-        
-        // Type 'R' = Revenue (Chiffre d'affaires)
-        if (type === 'R') {
-          debugSummary.revenueLines++;
-          const amount = line.AmtAcctCr || 0;
-          debugSummary.totalRevenueAmount += amount;
-          monthlySummary[month].chiffre_affaires += amount;
-          monthlySummary[month].debug.revenueEntries.push({
-            accountId,
-            amount: amount,
-            line: line
-          });
-          console.log(`💰 REVENUE ajouté: ${amount} pour compte ${accountId}`);
-        }
-        
-        // Type 'E' = Expense (Charges)
-        else if (type === 'E') {
-          debugSummary.expenseLines++;
-          const amount = line.AmtAcctDr || 0;
-          debugSummary.totalExpenseAmount += amount;
-          monthlySummary[month].charges += amount;
-          monthlySummary[month].debug.expenseEntries.push({
-            accountId,
-            amount: amount,
-            line: line
-          });
-          console.log(`💸 EXPENSE ajouté: ${amount} pour compte ${accountId}`);
-        }
-        
-        else {
-          console.log(`ℹ️ Ligne ignorée (type ${type}): compte ${accountId}`);
-        }
-      });
-      
-      console.log('🔍 Résumé du processing (CORRIGÉ):', debugSummary);
-      console.log('📊 Résumé mensuel brut:', monthlySummary);
-
-      // Transformer en format attendu par le composant
-      this.financialData = Object.entries(monthlySummary).map(([mois, vals]) => ({
-        mois, // Format YYYY-MM
-        chiffreAffaires: vals.chiffre_affaires || 0,
-        charges: vals.charges || 0,
-        resultatNet: (vals.chiffre_affaires || 0) - (vals.charges || 0),
-        debug: vals.debug // Ajouter les infos de debug
-      })).sort((a, b) => a.mois.localeCompare(b.mois));
-
-      console.log('✅ Données formatées finales (CORRIGÉ):', this.financialData);
-      
-      // Afficher le détail pour le mois actuel
-      if (this.financialData.length > 0) {
-        const currentMonth = this.financialData[this.financialData.length - 1];
-        console.log('🔍 Détail du mois', currentMonth.mois, ':', {
-          revenue: currentMonth.debug.revenueEntries,
-          expenses: currentMonth.debug.expenseEntries
+        console.log('📊 Comptes récupérés:', accountsRes.data.records?.length);
+        const accountTypeMap = {};
+        const typeCount = { R: 0, E: 0, A: 0, L: 0, other: 0 };
+        const getCorrectAccountType = (account) => {
+          const accountNumber = account.Value;
+          if (accountNumber.startsWith('1') || accountNumber.startsWith('2') || accountNumber.startsWith('3')) {
+            return 'A';
+          }
+          if (accountNumber.startsWith('4')) {
+            return 'L';
+          }
+          if (accountNumber.startsWith('5')) {
+            return 'A';
+          }
+          if (accountNumber.startsWith('6')) {
+            return 'E';
+          }
+          if (accountNumber.startsWith('7')) {
+            return 'R';
+          }
+          return account.AccountType?.id || account.AccountType || 'A';
+        };
+        accountsRes.data.records.forEach(ev => {
+          const originalType = ev.AccountType?.id || ev.AccountType;
+          const correctedType = getCorrectAccountType(ev);
+          const accountId = ev.id;
+          accountTypeMap[accountId] = correctedType;
+          if (correctedType === 'R') typeCount.R++;
+          else if (correctedType === 'E') typeCount.E++;
+          else if (correctedType === 'A') typeCount.A++;
+          else if (correctedType === 'L') typeCount.L++;
+          else typeCount.other++;
+          console.log(`📊 Compte ${ev.Value} "${ev.Name}": ${originalType} → ${correctedType} [ID: ${accountId}]`);
         });
+        console.log('📈 Types de comptes après classification automatique:', typeCount);
+        console.log('🗺️ Mapping des comptes (AUTO-CLASSIFIÉ):', accountTypeMap);
+        console.log('📈 Récupération des écritures comptables...');
+        let factRes;
+        try {
+          factRes = await axios.get('/api/v1/models/Fact_Acct', {
+            params: {
+              '$filter': `AD_Client_ID eq 11 and AD_Org_ID eq 11 and PostingType eq 'A'`
+            },
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+        } catch (factError) {
+          console.log('⚠️ Erreur avec Fact_Acct, fallback vers GL_JournalLine');
+          factRes = { data: { records: [] } };
+        }
+        let factAcctData = factRes.data.records || [];
+        console.log('💾 Écritures Fact_Acct récupérées:', factAcctData?.length);
+        if (!factAcctData || factAcctData.length === 0) {
+          console.log('🔄 Aucune écriture dans Fact_Acct, récupération depuis GL_JournalLine...');
+          try {
+            const journalLineRes = await axios.get('/api/v1/models/GL_JournalLine', {
+              params: {
+                '$expand': 'GL_Journal_ID,Account_ID'
+              },
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+            const journalLines = journalLineRes.data.records || [];
+            console.log('💾 Lignes de journal récupérées:', journalLines?.length);
+            factAcctData = journalLines.map(line => ({
+              id: line.id,
+              Account_ID: line.Account_ID,
+              AmtAcctCr: line.AmtSourceCr || 0,
+              AmtAcctDr: line.AmtSourceDr || 0,
+              DateAcct: line.DateAcct,
+              PostingType: 'A',
+              AD_Client_ID: { id: 11 },
+              AD_Org_ID: { id: 11 }
+            }));
+            console.log('✅ Conversion des lignes de journal terminée:', factAcctData.length, 'écritures');
+          } catch (journalError) {
+            console.error('❌ Erreur lors de la récupération des lignes de journal:', journalError);
+            factAcctData = [];
+          }
+        }
+        console.log('💾 Écritures récupérées:', factAcctData?.length);
+        if (factAcctData && factAcctData.length > 0) {
+          console.log('🔍 Échantillon d\'écritures:', factAcctData.slice(0, 3));
+          const amountAnalysis = {
+            withAmtAcctCr: 0,
+            withAmtAcctDr: 0,
+            totalCr: 0,
+            totalDr: 0,
+            accountsUsed: new Set(),
+            monthsFound: new Set()
+          };
+          factAcctData.forEach(line => {
+            if (line.AmtAcctCr && line.AmtAcctCr !== 0) {
+              amountAnalysis.withAmtAcctCr++;
+              amountAnalysis.totalCr += line.AmtAcctCr;
+            }
+            if (line.AmtAcctDr && line.AmtAcctDr !== 0) {
+              amountAnalysis.withAmtAcctDr++;
+              amountAnalysis.totalDr += line.AmtAcctDr;
+            }
+            const accountId = line.Account_ID?.id || line.Account_ID;
+            amountAnalysis.accountsUsed.add(accountId);
+            amountAnalysis.monthsFound.add(line.DateAcct.substring(0, 7));
+          });
+          console.log('💰 Analyse des montants:', {
+            lignesAvecCredit: amountAnalysis.withAmtAcctCr,
+            lignesAvecDebit: amountAnalysis.withAmtAcctDr,
+            totalCredit: amountAnalysis.totalCr,
+            totalDebit: amountAnalysis.totalDr,
+            comptesUtilises: amountAnalysis.accountsUsed.size,
+            moisTrouves: Array.from(amountAnalysis.monthsFound).sort()
+          });
+        }
+        const yearsSet = new Set();
+        factAcctData.forEach(line => {
+          const year = line.DateAcct.substring(0, 4);
+          yearsSet.add(year);
+        });
+        this.availableYears = Array.from(yearsSet).sort((a, b) => b.localeCompare(a));
+        console.log('📅 Années disponibles:', this.availableYears);
+        if (!this.selectedYear && this.availableYears.length > 0) {
+          this.selectedYear = parseInt(this.availableYears[0]);
+          console.log('🎯 Année auto-sélectionnée:', this.selectedYear);
+        }
+        if (this.selectedYear) {
+          const yearStart = `${this.selectedYear}-01-01`;
+          const yearEnd = `${this.selectedYear}-12-31`;
+          const filteredFactData = factAcctData.filter(line => {
+            return line.DateAcct >= yearStart && line.DateAcct <= yearEnd;
+          });
+          console.log(`📊 Écritures pour ${this.selectedYear}:`, filteredFactData.length);
+          const monthlySummary = {};
+          const debugSummary = {
+            revenueLines: 0,
+            expenseLines: 0,
+            unknownTypeLines: 0,
+            linesWithoutAmount: 0,
+            totalRevenueAmount: 0,
+            totalExpenseAmount: 0,
+            accountMatches: 0,
+            accountMismatches: 0
+          };
+          filteredFactData.forEach(line => {
+            const month = line.DateAcct.substring(0, 7);
+            const accountId = line.Account_ID?.id || line.Account_ID;
+            const type = accountTypeMap[accountId];
+            if (!type) {
+              debugSummary.unknownTypeLines++;
+              debugSummary.accountMismatches++;
+              console.log('⚠️ Compte sans type:', { 
+                accountId, 
+                lineAccount: line.Account_ID,
+                availableKeys: Object.keys(accountTypeMap).slice(0, 5)
+              });
+            } else {
+              debugSummary.accountMatches++;
+              console.log(`✅ Match trouvé - Compte ${accountId}: Type = ${type}`);
+            }
+            if (!line.AmtAcctCr && !line.AmtAcctDr) {
+              debugSummary.linesWithoutAmount++;
+            }
+            if (!monthlySummary[month]) {
+              monthlySummary[month] = { 
+                chiffre_affaires: 0, 
+                charges: 0,
+                debug: {
+                  revenueEntries: [],
+                  expenseEntries: []
+                }
+              };
+            }
+            if (type === 'R') {
+              debugSummary.revenueLines++;
+              const amount = line.AmtAcctCr || 0;
+              debugSummary.totalRevenueAmount += amount;
+              monthlySummary[month].chiffre_affaires += amount;
+              monthlySummary[month].debug.revenueEntries.push({
+                accountId,
+                amount: amount,
+                line: line
+              });
+              console.log(`💰 REVENUE ajouté: ${amount} pour compte ${accountId}`);
+            }
+            else if (type === 'E') {
+              debugSummary.expenseLines++;
+              const amount = line.AmtAcctDr || 0;
+              debugSummary.totalExpenseAmount += amount;
+              monthlySummary[month].charges += amount;
+              monthlySummary[month].debug.expenseEntries.push({
+                accountId,
+                amount: amount,
+                line: line
+              });
+              console.log(`💸 EXPENSE ajouté: ${amount} pour compte ${accountId}`);
+            }
+            else {
+              console.log(`ℹ️ Ligne ignorée (type ${type}): compte ${accountId}`);
+            }
+          });
+          console.log('🔍 Résumé du processing (CORRIGÉ):', debugSummary);
+          console.log('📊 Résumé mensuel brut:', monthlySummary);
+          this.financialData = Object.entries(monthlySummary).map(([mois, vals]) => ({
+            mois,
+            chiffreAffaires: vals.chiffre_affaires || 0,
+            charges: vals.charges || 0,
+            resultatNet: (vals.chiffre_affaires || 0) - (vals.charges || 0),
+            debug: vals.debug
+          })).sort((a, b) => a.mois.localeCompare(b.mois));
+          console.log('✅ Données formatées finales (CORRIGÉ):', this.financialData);
+          if (this.financialData.length > 0) {
+            const currentMonth = this.financialData[this.financialData.length - 1];
+            console.log('🔍 Détail du mois', currentMonth.mois, ':', {
+              revenue: currentMonth.debug.revenueEntries,
+              expenses: currentMonth.debug.expenseEntries
+            });
+          }
+        } else {
+          console.log('⚠️ Aucune année sélectionnée');
+          this.financialData = [];
+        }
+      } catch (error) {
+        console.error('❌ Erreur lors du chargement des données:', error);
+        this.error = error.response?.data?.message || error.message || 'Erreur lors du chargement des données';
+        this.financialData = [];
+      } finally {
+        this.isLoading = false;
+        console.log('🏁 Chargement terminé');
       }
-      
-    } else {
-      console.log('⚠️ Aucune année sélectionnée');
-      this.financialData = [];
-    }
-
-  } catch (error) {
-    console.error('❌ Erreur lors du chargement des données:', error);
-    this.error = error.response?.data?.message || error.message || 'Erreur lors du chargement des données';
-    this.financialData = [];
-  } finally {
-    this.isLoading = false;
-    console.log('🏁 Chargement terminé');
-  }
-},
-    // MÉTHODE SÉCURISÉE: Créer le graphique avec désactivation des animations pour les barres
+    },
     createChart() {
       console.log('📊 Création du graphique - Type:', this.chartType);
-      
       if (!this.$refs.chartCanvas) {
-        console.warn('Canvas non trouvé, graphique non créé')
-        return
+        console.warn('Canvas non trouvé, graphique non créé');
+        return;
       }
-
-      // Destruction complète et reset du canvas
       if (this.chart) {
         console.log('🗑️ Destruction du graphique précédent');
-        this.chart.destroy()
-        this.chart = null
+        this.chart.destroy();
+        this.chart = null;
       }
-
-      // Reset du canvas
       const canvas = this.$refs.chartCanvas;
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
       if (!this.filteredData || this.filteredData.length === 0) {
-        console.warn('Pas de données à afficher dans le graphique')
-        return
+        console.warn('Pas de données à afficher dans le graphique');
+        return;
       }
-
       const labels = this.filteredData.map(item => this.formatDate(item.mois));
       const revenueData = this.filteredData.map(item => item.chiffreAffaires);
       const expenseData = this.filteredData.map(item => item.charges);
       const netResultData = this.filteredData.map(item => item.resultatNet);
-
       let chartConfig;
-
       if (this.chartType === 'line') {
-        // Configuration pour graphique en ligne (avec animations)
         chartConfig = {
           type: 'line',
           data: {
@@ -1073,7 +980,6 @@ console.log('🗺️ Mapping des comptes (CORRIGÉ):', accountTypeMap);
           }
         };
       } else {
-        // Configuration pour graphique en barres (SANS animations pour éviter les erreurs)
         chartConfig = {
           type: 'bar',
           data: {
@@ -1105,7 +1011,6 @@ console.log('🗺️ Mapping des comptes (CORRIGÉ):', accountTypeMap);
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            // DÉSACTIVER TOUTES LES ANIMATIONS pour éviter l'erreur
             animation: false,
             animations: false,
             transitions: {
@@ -1131,7 +1036,7 @@ console.log('🗺️ Mapping des comptes (CORRIGÉ):', accountTypeMap);
                 borderWidth: 1,
                 cornerRadius: 8,
                 displayColors: true,
-                animation: false, // Désactiver même les animations des tooltips
+                animation: false,
                 callbacks: {
                   label: (context) => `${context.dataset.label}: ${this.formatCurrency(context.parsed.y)}`
                 }
@@ -1154,31 +1059,56 @@ console.log('🗺️ Mapping des comptes (CORRIGÉ):', accountTypeMap);
           }
         };
       }
-
-      // Créer le graphique avec protection d'erreur renforcée
       try {
         console.log('🚀 Tentative de création du graphique...');
         this.chart = new Chart(ctx, chartConfig);
         console.log('✅ Graphique créé avec succès - Type:', this.chartType);
-        
-        // Protection supplémentaire: vérifier que le graphique est bien créé
         if (!this.chart) {
           throw new Error('Le graphique n\'a pas pu être créé');
         }
-        
       } catch (error) {
         console.error('❌ Erreur lors de la création du graphique:', error);
         this.chart = null;
-        
-        // Message d'erreur à l'utilisateur pour les barres
         if (this.chartType === 'bar') {
           console.log('⚠️ Problème avec le graphique en barres, basculement vers ligne...');
-          // Forcer le retour au graphique en ligne
           setTimeout(() => {
             this.chartType = 'line';
             this.createChart();
           }, 500);
         }
+      }
+    },
+    navigateToDetail(indicator) {
+      console.log(`🔍 Navigation vers détail: ${indicator}`);
+      const detailData = {
+        indicator: indicator,
+        year: this.selectedYear,
+        amount: this.getAmountForIndicator(indicator),
+        rawData: this.filteredData
+      };
+      this.$router.push({
+        name: 'FinancialDetail',
+        params: {
+          indicator: indicator,
+          year: this.selectedYear
+        },
+        query: {
+          amount: this.getAmountForIndicator(indicator)
+        }
+      });
+    },
+    getAmountForIndicator(indicator) {
+      switch (indicator) {
+        case 'revenue':
+          return this.totals.chiffreAffaires;
+        case 'expense':
+          return this.totals.charges;
+        case 'profit':
+          return this.totals.resultatNet;
+        case 'margin':
+          return this.calculateMargin();
+        default:
+          return 0;
       }
     }
   },
@@ -1200,7 +1130,6 @@ console.log('🗺️ Mapping des comptes (CORRIGÉ):', accountTypeMap);
       },
       deep: true
     },
-    // NOUVEAU WATCH: Recréer le graphique quand le type change
     chartType: {
       handler(newType, oldType) {
         console.log(`📈 Changement de type de graphique: ${oldType} → ${newType}`);
@@ -1218,8 +1147,6 @@ console.log('🗺️ Mapping des comptes (CORRIGÉ):', accountTypeMap);
     this.$nextTick(() => {
       this.createChart();
     });
-    
-    // Fermer le menu d'export en cliquant ailleurs
     document.addEventListener('click', (event) => {
       if (this.$refs.exportDropdown && !this.$refs.exportDropdown.contains(event.target)) {
         this.showExportMenu = false;
@@ -1227,7 +1154,6 @@ console.log('🗺️ Mapping des comptes (CORRIGÉ):', accountTypeMap);
     });
   },
   beforeUnmount() {
-    // Nettoyer les event listeners
     document.removeEventListener('click', this.handleClickOutside);
     if (this.chart) {
       this.chart.destroy();
@@ -1237,181 +1163,183 @@ console.log('🗺️ Mapping des comptes (CORRIGÉ):', accountTypeMap);
 </script>
 
 <style scoped>
-.page-container {
+/* Global Styles */
+.financial-dashboard {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-}
-
-/* Debug Panel */
-.debug-panel {
-  font-family: 'Courier New', monospace;
-  z-index: 1000;
-}
-
-/* Header Section */
-.header-section {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 3rem 0 2rem 0;
-  position: relative;
-  overflow: hidden;
+  padding: 2rem;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-.header-section::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20"><defs><radialGradient id="a" cx="50%" cy="0%" r="100%"><stop offset="0%" style="stop-color:rgb(255,255,255);stop-opacity:0.1" /><stop offset="100%" style="stop-color:rgb(255,255,255);stop-opacity:0" /></radialGradient></defs><rect width="100" height="20" fill="url(%23a)" /></svg>') repeat-x;
-  opacity: 0.1;
+/* Dashboard Header */
+.dashboard-header {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  position: relative;
+  z-index: 100; /* Z-index pour le header */
 }
 
 .header-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 2rem;
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
-  position: relative;
-  z-index: 1;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.5rem;
 }
 
-.title-section {
+.dashboard-title {
   display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-}
-
-.page-title {
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0;
   font-size: 2.5rem;
   font-weight: 700;
-  margin: 0 0 0.5rem 0;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.title-icon {
+  font-size: 2.5rem;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+/* Year Selector */
+.year-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.year-label {
+  font-weight: 600;
+  color: #374151;
+  font-size: 1rem;
+}
+
+.year-select {
+  padding: 0.75rem 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 500;
+  background: white;
+  color: #374151;
+  transition: all 0.3s ease;
+  min-width: 140px;
+}
+
+.year-select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.year-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Header Actions */
+.header-actions {
   display: flex;
   align-items: center;
   gap: 1rem;
 }
 
-.title-icon {
-  font-size: 2rem;
-}
-
-.page-subtitle {
-  font-size: 1.1rem;
-  opacity: 0.9;
-  margin: 0;
-  font-weight: 300;
-}
-
-.header-controls {
+.btn {
   display: flex;
-  align-items: flex-end;
-  gap: 2rem;
-}
-
-.year-filter {
-  display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 0.5rem;
-  align-items: flex-end;
-}
-
-.filter-label {
-  font-size: 0.875rem;
-  opacity: 0.9;
-  font-weight: 500;
-}
-
-.select-wrapper {
-  position: relative;
-}
-
-.year-select {
-  appearance: none;
-  background: rgba(255, 255, 255, 0.2);
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  padding: 0.75rem 1.5rem;
+  border: none;
   border-radius: 12px;
-  padding: 0.75rem 2.5rem 0.75rem 1rem;
-  font-size: 1rem;
-  color: white;
+  font-size: 0.95rem;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  min-width: 140px;
-  backdrop-filter: blur(10px);
+  text-decoration: none;
+  white-space: nowrap;
 }
 
-.year-select:focus {
-  outline: none;
-  border-color: rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.25);
-}
-
-.year-select option {
-  background: #667eea;
+.btn-refresh {
+  background: linear-gradient(135deg, #10b981, #059669);
   color: white;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
-.select-wrapper::after {
-  content: '▼';
-  position: absolute;
-  top: 50%;
-  right: 1rem;
-  transform: translateY(-50%);
-  color: rgba(255, 255, 255, 0.7);
-  pointer-events: none;
-  font-size: 0.75rem;
+.btn-refresh:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
 }
 
-.action-buttons {
-  display: flex;
-  gap: 0.75rem;
-  position: relative;
-}
-
-.export-dropdown {
-  position: relative;
+.btn-refresh:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .btn-export {
-  background: rgba(255, 255, 255, 0.9);
-  color: #667eea;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
   position: relative;
 }
 
-.btn-export:hover {
-  background: white;
-  transform: translateY(-1px);
+.btn-export:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.btn-export:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .dropdown-arrow {
-  margin-left: 0.5rem;
-  font-size: 0.75rem;
-  transition: transform 0.2s ease;
+  font-size: 0.8rem;
+  transition: transform 0.3s ease;
 }
 
-.export-dropdown.active .dropdown-arrow {
+.btn-export:hover .dropdown-arrow {
   transform: rotate(180deg);
 }
 
-.export-menu {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 0.5rem;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(10px);
-  z-index: 1000;
-  min-width: 200px;
-  overflow: hidden;
-  animation: fadeInDown 0.2s ease-out;
+/* Export Dropdown */
+.export-dropdown {
+  position: relative;
+  z-index: 1001; /* S'assurer que le conteneur parent a aussi un z-index élevé */
 }
 
-@keyframes fadeInDown {
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  min-width: 200px;
+  z-index: 9999; /* Z-index très élevé pour passer au-dessus de tout */
+  overflow: hidden;
+  animation: slideDown 0.3s ease;
+  backdrop-filter: blur(10px); /* Effet de flou pour le background */
+}
+
+@keyframes slideDown {
   from {
     opacity: 0;
     transform: translateY(-10px);
@@ -1422,90 +1350,52 @@ console.log('🗺️ Mapping des comptes (CORRIGÉ):', accountTypeMap);
   }
 }
 
-.export-option {
+.dropdown-item {
   width: 100%;
-  padding: 0.75rem 1rem;
-  border: none;
-  background: none;
-  text-align: left;
-  cursor: pointer;
-  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #374151;
-}
-
-.export-option:hover {
-  background: #f8fafc;
-  color: #667eea;
-}
-
-.export-option:active {
-  background: #e2e8f0;
-}
-
-.export-icon {
-  font-size: 1rem;
-  width: 1.25rem;
-  text-align: center;
-}
-
-.btn {
-  padding: 0.75rem 1.5rem;
+  padding: 0.875rem 1.25rem;
   border: none;
-  border-radius: 12px;
-  font-size: 0.875rem;
-  font-weight: 600;
+  background: none;
+  color: #374151;
+  font-size: 0.95rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
+  text-align: left;
 }
 
-.btn-refresh {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-}
-
-.btn-refresh:hover {
-  background: rgba(255, 255, 255, 0.25);
-  transform: translateY(-1px);
-}
-
-.btn-debug {
-  background: rgba(255, 193, 7, 0.2);
-  color: white;
-  border: 2px solid rgba(255, 193, 7, 0.3);
-}
-
-.btn-debug:hover,
-.btn-debug.active {
-  background: rgba(255, 193, 7, 0.3);
-  border-color: rgba(255, 193, 7, 0.5);
-}
-
-.btn-export {
-  background: rgba(255, 255, 255, 0.9);
+.dropdown-item:hover {
+  background: #f3f4f6;
   color: #667eea;
 }
 
-.btn-export:hover {
-  background: white;
-  transform: translateY(-1px);
+.dropdown-icon {
+  font-size: 1.1rem;
 }
 
-.btn-icon {
-  font-size: 1rem;
+/* Loading State */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
-.spinning {
+.loading-spinner {
+  width: 60px;
+  height: 60px;
+  border: 4px solid #e5e7eb;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
   animation: spin 1s linear infinite;
+  margin-bottom: 1.5rem;
 }
 
 @keyframes spin {
@@ -1513,82 +1403,62 @@ console.log('🗺️ Mapping des comptes (CORRIGÉ):', accountTypeMap);
   100% { transform: rotate(360deg); }
 }
 
-/* Main Content */
-.main-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-  position: relative;
-  top: -1rem;
+.loading-text {
+  color: #6b7280;
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin: 0;
 }
 
-/* Loading and Error States */
-.loading-state, .error-state, .empty-data-state {
-  text-align: center;
+/* Error State */
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   padding: 4rem 2rem;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  margin-bottom: 2rem;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  text-align: center;
 }
 
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #f3f4f6;
-  border-top: 4px solid #667eea;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 1rem auto;
-}
-
-.error-icon, .empty-icon {
+.error-icon {
   font-size: 4rem;
   margin-bottom: 1rem;
-  opacity: 0.5;
 }
 
-.error-state h3, .loading-state h3, .empty-data-state h3 {
+.error-title {
+  color: #dc2626;
   font-size: 1.5rem;
-  margin-bottom: 0.5rem;
-  color: #374151;
+  font-weight: 700;
+  margin: 0 0 1rem 0;
 }
 
-.error-state p, .loading-state p, .empty-data-state p {
-  color: #64748b;
-  margin-bottom: 1.5rem;
+.error-message {
+  color: #6b7280;
+  font-size: 1rem;
+  margin: 0 0 2rem 0;
+  max-width: 400px;
 }
 
-.retry-btn, .debug-btn {
-  padding: 0.75rem 1.5rem;
-  background: #667eea;
+.btn-retry {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
   color: white;
-  border: none;
-  border-radius: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin: 0 0.5rem;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
 }
 
-.retry-btn:hover, .debug-btn:hover {
-  background: #5a67d8;
-  transform: translateY(-1px);
+.btn-retry:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(220, 38, 38, 0.4);
 }
 
-.debug-btn {
-  background: #ffc107;
-  color: #000;
-}
-
-.debug-btn:hover {
-  background: #e0a800;
-}
-
-.empty-actions {
+/* Main Content */
+.dashboard-content {
   display: flex;
-  justify-content: center;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 2rem;
 }
 
 /* KPI Section */
@@ -1596,18 +1466,19 @@ console.log('🗺️ Mapping des comptes (CORRIGÉ):', accountTypeMap);
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 1.5rem;
-  margin-bottom: 2rem;
 }
 
 .kpi-card {
-  background: white;
-  border-radius: 16px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e2e8f0;
-  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   position: relative;
   overflow: hidden;
+  transition: all 0.3s ease;
+  z-index: 1; /* Z-index bas pour les cartes KPI */
 }
 
 .kpi-card::before {
@@ -1619,12 +1490,13 @@ console.log('🗺️ Mapping des comptes (CORRIGÉ):', accountTypeMap);
   height: 4px;
   background: linear-gradient(90deg, #667eea, #764ba2);
   transform: scaleX(0);
+  transform-origin: left;
   transition: transform 0.3s ease;
 }
 
 .kpi-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  transform: translateY(-6px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
 }
 
 .kpi-card:hover::before {
@@ -1634,59 +1506,59 @@ console.log('🗺️ Mapping des comptes (CORRIGÉ):', accountTypeMap);
 .card-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
 }
 
 .kpi-icon {
-  width: 50px;
-  height: 50px;
-  background: #f8fafc;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
+  font-size: 2.5rem;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
 .kpi-trend {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  font-size: 0.875rem;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
   font-weight: 600;
-  padding: 0.25rem 0.5rem;
-  border-radius: 8px;
 }
 
 .kpi-trend.positive {
-  color: #10b981;
   background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
 }
 
 .kpi-trend.negative {
-  color: #ef4444;
   background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
 }
 
 .trend-indicator {
   font-size: 1rem;
 }
 
-.kpi-content h3 {
-  font-size: 0.875rem;
-  color: #64748b;
-  font-weight: 500;
+.kpi-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.kpi-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #6b7280;
+  margin: 0;
   text-transform: uppercase;
-  letter-spacing: 0.025em;
-  margin: 0 0 0.5rem 0;
+  letter-spacing: 0.5px;
 }
 
 .kpi-value {
-  font-size: 1.75rem;
+  font-size: 2.25rem;
   font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 0.25rem;
+  color: #1f2937;
+  line-height: 1.1;
 }
 
 .kpi-value.positive {
@@ -1698,443 +1570,473 @@ console.log('🗺️ Mapping des comptes (CORRIGÉ):', accountTypeMap);
 }
 
 .kpi-description {
-  color: #64748b;
-  font-size: 0.875rem;
+  font-size: 0.9rem;
+  color: #9ca3af;
   margin: 0;
+}
+
+.click-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.5rem;
+  background: rgba(102, 126, 234, 0.1);
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #667eea;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.3s ease;
+}
+
+.kpi-card:hover .click-indicator {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.click-icon {
+  font-size: 1rem;
+  animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-4px);
+  }
+  60% {
+    transform: translateY(-2px);
+  }
+}
+
+/* Effet de survol spécifique par type */
+.kpi-card.revenue:hover {
+  border-left: 4px solid #10b981;
+}
+
+.kpi-card.expenses:hover {
+  border-left: 4px solid #ef4444;
+}
+
+.kpi-card.profit:hover {
+  border-left: 4px solid #667eea;
+}
+
+.kpi-card.margin:hover {
+  border-left: 4px solid #f59e0b;
 }
 
 /* Chart Section */
 .chart-section {
-  background: white;
-  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
   padding: 2rem;
-  margin-bottom: 2rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e2e8f0;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.section-header {
+.chart-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1.5rem;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
-.section-title h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #1e293b;
-  margin: 0 0 0.25rem 0;
-}
-
-.section-subtitle {
-  color: #475569;
-  font-size: 0.9rem;
+.chart-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   margin: 0;
-  font-weight: 500;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.chart-icon {
+  font-size: 1.5rem;
 }
 
 .chart-controls {
   display: flex;
   gap: 0.5rem;
-  background: #f8fafc;
-  border-radius: 12px;
+  background: #f3f4f6;
   padding: 0.25rem;
+  border-radius: 12px;
 }
 
-.chart-btn {
+.chart-type-btn {
   padding: 0.5rem 1rem;
   border: none;
-  background: transparent;
   border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 0.875rem;
-  color: #64748b;
+  font-size: 0.9rem;
   font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: transparent;
+  color: #6b7280;
 }
 
-.chart-btn.active,
-.chart-btn:hover {
+.chart-type-btn.active {
   background: white;
-  color: #1e293b;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  color: #667eea;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.chart-type-btn:hover:not(.active) {
+  color: #374151;
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .chart-container {
-  height: 400px;
   position: relative;
+  height: 400px;
+  width: 100%;
 }
 
-/* Monthly Section */
-.monthly-section {
-  margin-bottom: 2rem;
-  background: white;
-  border-radius: 16px;
+.financial-chart {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Table Section */
+.table-section {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
   padding: 2rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e2e8f0;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.search-container {
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.table-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.table-icon {
+  font-size: 1.5rem;
+}
+
+.table-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.search-box {
   position: relative;
   display: flex;
   align-items: center;
-  max-width: 300px;
-}
-
-.search-icon {
-  position: absolute;
-  left: 1rem;
-  color: #64748b;
-  font-size: 1rem;
-  z-index: 2;
 }
 
 .search-input {
-  width: 100%;
   padding: 0.75rem 1rem 0.75rem 2.5rem;
-  font-size: 0.875rem;
-  border: 2px solid #e2e8f0;
+  border: 2px solid #e5e7eb;
   border-radius: 12px;
+  font-size: 0.95rem;
   background: white;
   transition: all 0.3s ease;
-  outline: none;
+  min-width: 200px;
 }
 
 .search-input:focus {
+  outline: none;
   border-color: #667eea;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-.search-clear {
+.search-icon {
   position: absolute;
-  right: 1rem;
-  color: #94a3b8;
-  cursor: pointer;
-  font-size: 1rem;
-  padding: 0.25rem;
-  border-radius: 50%;
-  transition: all 0.2s ease;
+  left: 0.75rem;
+  font-size: 1.1rem;
+  color: #9ca3af;
 }
 
-.search-clear:hover {
-  background: #f1f5f9;
-  color: #475569;
+.table-container {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
 }
 
-.monthly-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.monthly-card {
+.financial-table {
+  width: 100%;
+  border-collapse: collapse;
   background: white;
-  border-radius: 16px;
-  padding: 1.5rem;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  border: 1px solid #e2e8f0;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
 }
 
-.monthly-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  transform: scaleX(0);
-  transition: transform 0.3s ease;
-}
-
-.monthly-card.positive-month::before {
-  background: linear-gradient(90deg, #10b981, #059669);
-}
-
-.monthly-card.negative-month::before {
-  background: linear-gradient(90deg, #ef4444, #dc2626);
-}
-
-.monthly-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-}
-
-.monthly-card:hover::before {
-  transform: scaleX(1);
-}
-
-.monthly-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.month-badge {
-  background: #f1f5f9;
-  color: #475569;
-  padding: 0.5rem 0.75rem;
-  border-radius: 8px;
+.financial-table th {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  padding: 1rem;
+  text-align: left;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.financial-table td {
+  padding: 1rem;
+  border-bottom: 1px solid #f3f4f6;
+  transition: background-color 0.2s ease;
+}
+
+.table-row:hover {
+  background: #f8fafc;
+}
+
+.table-row.profit-row {
+  border-left: 4px solid #10b981;
+}
+
+.table-row.loss-row {
+  border-left: 4px solid #ef4444;
+}
+
+.month-cell {
+  font-weight: 600;
+}
+
+.month-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.month-name {
+  color: #1f2937;
+  font-size: 1rem;
   text-transform: capitalize;
 }
 
-.result-indicator {
-  font-size: 1.5rem;
+.month-date {
+  color: #9ca3af;
+  font-size: 0.8rem;
 }
 
-.result-indicator.positive {
-  filter: hue-rotate(120deg);
-}
-
-.result-indicator.negative {
-  filter: hue-rotate(-60deg);
-}
-
-.monthly-details {
-  margin-bottom: 1rem;
-}
-
-.detail-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.75rem;
-}
-
-.detail-label {
-  color: #64748b;
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-.detail-value {
+.amount-cell {
+  text-align: right;
   font-weight: 600;
-  font-family: 'Monaco', 'Consolas', monospace;
-  font-size: 0.9rem;
+  font-family: 'Monaco', 'Menlo', monospace;
 }
 
-.detail-value.revenue {
+.amount-cell.revenue .amount-value {
   color: #10b981;
 }
 
-.detail-value.expenses {
+.amount-cell.expense .amount-value {
   color: #ef4444;
 }
 
-.detail-value.result.positive {
+.amount-cell.result .amount-value.positive {
   color: #10b981;
 }
 
-.detail-value.result.negative {
+.amount-cell.result .amount-value.negative {
   color: #ef4444;
 }
 
-.detail-divider {
-  height: 1px;
-  background: #e2e8f0;
-  margin: 1rem 0;
-}
-
-.final-result {
-  padding: 0.75rem;
-  background: #f8fafc;
-  border-radius: 8px;
-  margin-bottom: 0 !important;
-}
-
-.final-result .detail-label {
-  font-weight: 600;
-  color: #374151;
-}
-
-.monthly-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 0.75rem;
-  border-top: 1px solid #f1f5f9;
-}
-
-.margin-info {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.margin-label {
-  color: #64748b;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.margin-badge {
-  padding: 0.375rem 0.75rem;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 0.75rem;
+.margin-cell {
   text-align: center;
 }
 
-.margin-badge.excellent {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
-}
-
-.margin-badge.good {
-  background: rgba(245, 158, 11, 0.1);
-  color: #f59e0b;
-}
-
-.margin-badge.average {
-  background: rgba(102, 126, 234, 0.1);
-  color: #667eea;
-}
-
-.margin-badge.poor {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
-}
-
-/* Yearly Summary */
-.yearly-summary {
-  margin-bottom: 2rem;
-}
-
-.summary-card {
-  background: white;
-  border-radius: 16px;
-  padding: 2rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e2e8f0;
-}
-
-.summary-card h3 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #1e293b;
-  margin: 0 0 1.5rem 0;
-}
-
-.summary-content {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-}
-
-.summary-item {
+.margin-wrapper {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 0.5rem;
 }
 
-.summary-label {
-  color: #64748b;
-  font-size: 0.875rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.025em;
+.margin-value {
+  font-weight: 600;
+  font-size: 0.9rem;
 }
 
-.summary-value {
-  font-size: 1.25rem;
+.margin-wrapper.excellent .margin-value {
+  color: #10b981;
+}
+
+.margin-wrapper.good .margin-value {
+  color: #059669;
+}
+
+.margin-wrapper.average .margin-value {
+  color: #d97706;
+}
+
+.margin-wrapper.poor .margin-value {
+  color: #ef4444;
+}
+
+.margin-bar {
+  width: 60px;
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.margin-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.margin-wrapper.excellent .margin-fill {
+  background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.margin-wrapper.good .margin-fill {
+  background: linear-gradient(90deg, #059669, #047857);
+}
+
+.margin-wrapper.average .margin-fill {
+  background: linear-gradient(90deg, #d97706, #b45309);
+}
+
+.margin-wrapper.poor .margin-fill {
+  background: linear-gradient(90deg, #ef4444, #dc2626);
+}
+
+.totals-row {
+  background: #f8fafc;
+  border-top: 2px solid #e5e7eb;
+}
+
+.totals-row td {
   font-weight: 700;
-  font-family: 'Monaco', 'Consolas', monospace;
+  padding: 1.25rem 1rem;
+  border-bottom: none;
 }
 
-.summary-value.revenue {
+.total-label {
+  color: #374151;
+  font-size: 1rem;
+}
+
+.total-amount.revenue {
   color: #10b981;
 }
 
-.summary-value.expenses {
+.total-amount.expense {
   color: #ef4444;
 }
 
-.summary-value.result.positive {
+.total-amount.result.positive {
   color: #10b981;
 }
 
-.summary-value.result.negative {
+.total-amount.result.negative {
   color: #ef4444;
 }
 
-.summary-value.margin {
+.margin-total {
   color: #667eea;
+  font-size: 1.1rem;
 }
 
-/* Empty State */
-.empty-state {
-  text-align: center;
+/* Empty States */
+.empty-state,
+.no-year-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   padding: 4rem 2rem;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e2e8f0;
-  margin-top: 2rem;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  text-align: center;
 }
 
-.empty-icon {
+.empty-icon,
+.no-year-icon {
   font-size: 4rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
   opacity: 0.6;
 }
 
-.empty-state h3 {
+.empty-title,
+.no-year-title {
+  color: #374151;
   font-size: 1.5rem;
-  margin-bottom: 0.75rem;
-  color: #1e293b;
-  font-weight: 600;
+  font-weight: 700;
+  margin: 0 0 1rem 0;
 }
 
-.empty-state p {
-  color: #475569;
+.empty-message,
+.no-year-message {
+  color: #6b7280;
   font-size: 1rem;
-  margin: 0;
-  font-weight: 500;
+  margin: 0 0 2rem 0;
+  max-width: 400px;
+  line-height: 1.6;
+}
+
+.btn-reload {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-reload:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
 }
 
 /* Responsive Design */
-@media (max-width: 1024px) {
-  .header-content {
-    flex-direction: column;
-    gap: 1.5rem;
-    text-align: center;
-  }
-  
-  .header-controls {
-    align-items: center;
-    width: 100%;
-  }
-  
-  .year-filter {
-    align-items: center;
-  }
-  
-  .section-header {
-    flex-direction: column;
-    gap: 1rem;
-    align-items: stretch;
-  }
-  
-  .search-container {
-    max-width: 100%;
+@media (max-width: 1200px) {
+  .kpi-section {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   }
 }
 
 @media (max-width: 768px) {
-  .page-title {
-    font-size: 2rem;
+  .financial-dashboard {
+    padding: 1rem;
   }
   
-  .main-content {
-    padding: 1rem;
+  .dashboard-header {
+    padding: 1.5rem;
+  }
+  
+  .header-content {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1.5rem;
+  }
+  
+  .dashboard-title {
+    font-size: 2rem;
+    text-align: center;
+  }
+  
+  .header-controls {
+    justify-content: center;
   }
   
   .kpi-section {
@@ -2142,80 +2044,118 @@ console.log('🗺️ Mapping des comptes (CORRIGÉ):', accountTypeMap);
     gap: 1rem;
   }
   
-  .monthly-grid {
-    grid-template-columns: 1fr;
-    gap: 1rem;
+  .kpi-card {
+    padding: 1.5rem;
   }
   
-  .monthly-card {
-    padding: 1.25rem;
+  .chart-section,
+  .table-section {
+    padding: 1.5rem;
   }
   
-  .header-content {
-    padding: 0 1rem;
-  }
-  
-  .action-buttons {
-    width: 100%;
-    justify-content: center;
-  }
-  
-  .btn {
-    flex: 1;
+  .chart-header,
+  .table-header {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
   }
   
   .chart-container {
     height: 300px;
   }
   
-  .summary-content {
-    grid-template-columns: 1fr;
-    gap: 1rem;
+  .search-input {
+    min-width: 100%;
+  }
+  
+  .financial-table {
+    font-size: 0.9rem;
+  }
+  
+  .financial-table th,
+  .financial-table td {
+    padding: 0.75rem 0.5rem;
+  }
+  
+  .click-indicator {
+    font-size: 0.6rem;
+    padding: 0.25rem;
+  }
+  
+  .kpi-card:hover {
+    transform: translateY(-3px);
+  }
+  
+  .amount-col,
+  .margin-col {
+    min-width: 100px;
   }
 }
 
 @media (max-width: 480px) {
-  .page-title {
-    font-size: 1.75rem;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  
-  .kpi-card {
-    padding: 1.25rem;
-  }
-  
-  .kpi-icon {
-    width: 40px;
-    height: 40px;
-    font-size: 1.25rem;
-  }
-  
-  .kpi-value {
+  .dashboard-title {
     font-size: 1.5rem;
   }
   
-  .monthly-header {
-    flex-direction: column;
-    gap: 0.5rem;
-    align-items: flex-start;
+  .title-icon {
+    font-size: 2rem;
   }
   
-  .result-indicator {
-    align-self: flex-end;
+  .kpi-value {
+    font-size: 1.8rem;
   }
   
-  .action-buttons {
-    flex-direction: column;
-    gap: 0.5rem;
+  .kpi-icon {
+    font-size: 2rem;
+  }
+  
+  .chart-title,
+  .table-title {
+    font-size: 1.25rem;
+  }
+  
+  .btn {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .financial-dashboard {
+    background: white;
+    padding: 1rem;
+  }
+  
+  .dashboard-header,
+  .kpi-card,
+  .chart-section,
+  .table-section {
+    background: white;
+    box-shadow: none;
+    border: 1px solid #e5e7eb;
+  }
+  
+  .header-actions,
+  .chart-controls,
+  .search-box {
+    display: none;
+  }
+  
+  .kpi-card:hover {
+    transform: none;
+  }
+  
+  .click-indicator {
+    display: none;
   }
 }
 
 /* Animations */
-@keyframes fadeInUp {
+@keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(30px);
+    transform: translateY(20px);
   }
   to {
     opacity: 1;
@@ -2223,19 +2163,66 @@ console.log('🗺️ Mapping des comptes (CORRIGÉ):', accountTypeMap);
   }
 }
 
-.kpi-card,
-.monthly-card,
-.chart-section,
-.summary-card {
-  animation: fadeInUp 0.6s ease-out;
+.dashboard-content {
+  animation: fadeIn 0.6s ease-out;
 }
 
-/* Utilities */
-.positive {
-  color: #10b981 !important;
+.kpi-card {
+  animation: fadeIn 0.6s ease-out;
 }
 
-.negative {
-  color: #ef4444 !important;
+.kpi-card:nth-child(1) { animation-delay: 0.1s; }
+.kpi-card:nth-child(2) { animation-delay: 0.2s; }
+.kpi-card:nth-child(3) { animation-delay: 0.3s; }
+.kpi-card:nth-child(4) { animation-delay: 0.4s; }
+
+/* Focus styles for accessibility */
+.btn:focus,
+.year-select:focus,
+.search-input:focus,
+.chart-type-btn:focus {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .financial-dashboard {
+    background: white;
+  }
+  
+  .dashboard-header,
+  .kpi-card,
+  .chart-section,
+  .table-section {
+    background: white;
+    border: 2px solid #000;
+  }
+  
+  .kpi-value,
+  .chart-title,
+  .table-title {
+    color: #000;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .loading-spinner {
+    animation: none;
+    border: 4px solid #667eea;
+  }
+  
+  .click-icon {
+    animation: none;
+  }
 }
 </style>

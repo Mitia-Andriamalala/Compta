@@ -25,15 +25,22 @@
 
         <button @click="valider" class="validate-button">
           <i class="fas fa-check-circle button-icon"></i>
-          Valider les fichiers
+          Valider et importer tout
+        </button>
+
+        <!-- NOUVEAU: Bouton séparé pour créer uniquement les Business Partners -->
+        <button @click="createBusinessPartnersNow" class="validate-button" style="background-color: #28a745; margin-top: 1rem;">
+          <i class="fas fa-users button-icon"></i>
+          Créer les Business Partners uniquement
         </button>
       </div>
 
-      <div v-if="message" class="message-alert" :class="{ 'error-message': !message.includes('succès') }">
-        <i class="fas" :class="message.includes('succès') ? 'fa-check-circle' : 'fa-exclamation-circle'"></i>
+      <div v-if="message" class="message-alert" :class="{ 'error-message': !message.includes('succès') && !message.includes('✅') }">
+        <i class="fas" :class="message.includes('succès') || message.includes('✅') ? 'fa-check-circle' : 'fa-exclamation-circle'"></i>
         {{ message }}
       </div>
     </div>
+
     <div v-if="csvData1.length" class="data-section">
       <div class="data-card">
         <h2 class="data-title">
@@ -85,6 +92,27 @@
       </div>
     </div>
 
+    <!-- NOUVEAU: Section Business Partners détectés -->
+    <div v-if="detectedBPartners.length" class="references-section">
+      <div class="references-card">
+        <h2 class="references-title">
+          <i class="fas fa-users"></i>
+          Business Partners détectés
+        </h2>
+        <div class="references-grid">
+          <div v-for="(bp, index) in detectedBPartners" :key="'bp-' + index" class="reference-item" :style="getStatusStyle(bp.status)">
+            <span class="reference-number">
+              <i :class="bp.type === 'client' ? 'fas fa-user' : 'fas fa-building'"></i>
+            </span>
+            <div class="reference-details">
+              <div class="reference-value">{{ bp.libelle }}</div>
+              <div class="reference-date">{{ bp.compte }} - {{ bp.type }} - {{ getStatusText(bp.status) }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div v-if="uniqueReferences.length" class="references-section">
       <div class="references-card">
         <h2 class="references-title">
@@ -123,6 +151,7 @@ export default {
       csvData1: [],
       csvData2: [],
       uniqueReferences: [],
+      detectedBPartners: [], // NOUVEAU: Pour afficher les Business Partners détectés
       message: '',
     };
   },
@@ -130,6 +159,7 @@ export default {
     redirectToPage() {
       this.$router.push('/compte');
     },
+    
     handleFileChange1(event) {
       const file = event.target.files[0];
       if (file) {
@@ -137,22 +167,26 @@ export default {
           complete: (result) => {
             this.csvData1 = result.data;
             this.extractUniqueReferences();
+            this.analyzeForBPartners(); // NOUVEAU: Analyser après chargement
           },
           header: true,
         });
       }
     },
+    
     handleFileChange2(event) {
       const file = event.target.files[0];
       if (file) {
         Papa.parse(file, {
           complete: (result) => {
             this.csvData2 = result.data;
+            this.analyzeForBPartners(); // NOUVEAU: Analyser après chargement
           },
           header: true,
         });
       }
     },
+    
     isDateValid(dateStr) {
       const regex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
       const match = dateStr.match(regex);
@@ -168,7 +202,7 @@ export default {
       return date.getDate() === day && date.getMonth() === month - 1 && date.getFullYear() === year;
     },
     
-    // NOUVELLE MÉTHODE: Classification automatique des comptes
+    // Classification automatique des comptes
     getAccountType(accountNumber) {
       const account = accountNumber.toString();
       
@@ -193,6 +227,218 @@ export default {
       return 'A';
     },
 
+    // NOUVEAU: Analyser les comptes pour détecter les Business Partners
+    analyzeForBPartners() {
+      if (this.csvData2.length === 0) return;
+      
+      this.detectedBPartners = this.analyzeAccountsForBusinessPartners();
+    },
+
+    // NOUVEAU: Analyser automatiquement les comptes clients/fournisseurs
+    analyzeAccountsForBusinessPartners() {
+      const potentialBPartners = [];
+      
+      // Analyser le fichier des comptes pour détecter clients/fournisseurs
+      this.csvData2.forEach(compteInfo => {
+        const compte = compteInfo.compte;
+        const libelle = compteInfo.libelle;
+        
+        let isClientFournisseur = false;
+        let type = null;
+        
+        // DÉTECTION AUTOMATIQUE par numéro de compte (PCG français)
+        if (compte.startsWith('40')) {
+          isClientFournisseur = true;
+          type = 'fournisseur'; // Comptes 40x = Fournisseurs
+        } else if (compte.startsWith('41')) {
+          isClientFournisseur = true;
+          type = 'client'; // Comptes 41x = Clients
+        }
+        
+        // DÉTECTION PAR MOTS-CLÉS dans le libellé
+        if (!isClientFournisseur) {
+          const libelleLC = libelle.toLowerCase();
+          if (libelleLC.includes('client') || libelleLC.includes('débiteur')) {
+            isClientFournisseur = true;
+            type = 'client';
+          } else if (libelleLC.includes('fournisseur') || libelleLC.includes('créancier')) {
+            isClientFournisseur = true;
+            type = 'fournisseur';
+          }
+        }
+        
+        if (isClientFournisseur) {
+          potentialBPartners.push({
+            compte: compte,
+            libelle: libelle,
+            type: type,
+            status: 'pending'
+          });
+        }
+      });
+      
+      console.log('🔍 Comptes clients/fournisseurs détectés:', potentialBPartners);
+      return potentialBPartners;
+    },
+
+    // NOUVEAU: Créer automatiquement les Business Partners
+    async createBusinessPartnersFromAccounts() {
+      const token = sessionStorage.getItem('authToken');
+      const accountsToConvert = this.analyzeAccountsForBusinessPartners();
+      
+      if (accountsToConvert.length === 0) {
+        console.log('ℹ️ Aucun compte client/fournisseur détecté à convertir');
+        return [];
+      }
+      
+      console.log(`🏗️ Création de ${accountsToConvert.length} Business Partners...`);
+      const createdBPartners = [];
+      
+      for (const accountInfo of accountsToConvert) {
+        try {
+          // 1. Vérifier si le Business Partner existe déjà
+          const existingBP = await fonction.getIDempiereModelsWhereSelect(
+            token,
+            'c_bpartner',
+            'Value',
+            `'${accountInfo.compte}'`,
+            'C_BPartner_ID'
+          );
+          
+          if (existingBP.records && existingBP.records.length > 0) {
+            console.log(`✅ Business Partner ${accountInfo.compte} existe déjà (ID: ${existingBP.records[0].id})`);
+            createdBPartners.push({
+              id: existingBP.records[0].id,
+              compte: accountInfo.compte,
+              name: accountInfo.libelle,
+              type: accountInfo.type,
+              status: 'existing'
+            });
+            
+            // Mettre à jour l'affichage
+            const bpIndex = this.detectedBPartners.findIndex(bp => bp.compte === accountInfo.compte);
+            if (bpIndex !== -1) {
+              this.detectedBPartners[bpIndex].status = 'existing';
+            }
+            continue;
+          }
+          
+          // 2. Créer le nouveau Business Partner
+          const bpartnerData = {
+            AD_Org_ID: { id: 11 },
+            AD_Client_ID: { id: 11 },
+            Value: accountInfo.compte, // Utiliser le numéro de compte comme référence
+            Name: accountInfo.libelle,
+            IsVendor: accountInfo.type === 'fournisseur',
+            IsCustomer: accountInfo.type === 'client',
+            TaxID: accountInfo.compte,
+            Description: `Business Partner créé automatiquement depuis le compte ${accountInfo.compte}`,
+            IsActive: true,
+            IsSummary: false
+          };
+          
+          console.log(`🏪 Création: ${accountInfo.libelle} (${accountInfo.type})`);
+          const result = await fonction.creationtable(token, 'c_bpartner', bpartnerData);
+          
+          if (result && result.id) {
+            console.log(`✅ Business Partner créé avec succès - ID: ${result.id}`);
+            
+            createdBPartners.push({
+              id: result.id,
+              compte: accountInfo.compte,
+              name: accountInfo.libelle,
+              type: accountInfo.type,
+              status: 'created'
+            });
+            
+            // Mettre à jour l'affichage
+            const bpIndex = this.detectedBPartners.findIndex(bp => bp.compte === accountInfo.compte);
+            if (bpIndex !== -1) {
+              this.detectedBPartners[bpIndex].status = 'created';
+            }
+            
+            // 3. Créer l'adresse par défaut (optionnel mais recommandé)
+            try {
+              const locationData = {
+                AD_Org_ID: { id: 11 },
+                AD_Client_ID: { id: 11 },
+                C_BPartner_ID: { id: result.id },
+                Name: 'Adresse principale',
+                IsShipTo: true,  // Adresse de livraison
+                IsBillTo: true,  // Adresse de facturation
+                IsActive: true
+              };
+              
+              await fonction.creationtable(token, 'c_bpartner_location', locationData);
+              console.log(`📍 Adresse créée pour ${accountInfo.libelle}`);
+            } catch (locationError) {
+              console.log(`⚠️ Adresse non créée pour ${accountInfo.libelle}:`, locationError.message);
+            }
+          }
+          
+        } catch (error) {
+          console.error(`❌ Erreur création Business Partner ${accountInfo.compte}:`, error);
+        }
+      }
+      
+      console.log(`🎉 ${createdBPartners.length} Business Partners traités !`);
+      return createdBPartners;
+    },
+
+    // NOUVEAU: Bouton pour créer uniquement les Business Partners
+    async createBusinessPartnersNow() {
+      if (this.csvData2.length === 0) {
+        alert('Veuillez d\'abord charger le fichier des comptes');
+        return;
+      }
+      
+      try {
+        console.log('🚀 Création manuelle des Business Partners...');
+        const createdBPartners = await this.createBusinessPartnersFromAccounts();
+        
+        if (createdBPartners.length > 0) {
+          const clients = createdBPartners.filter(bp => bp.type === 'client');
+          const fournisseurs = createdBPartners.filter(bp => bp.type === 'fournisseur');
+          
+          this.message = `✅ Business Partners créés avec succès !
+- ${clients.length} clients
+- ${fournisseurs.length} fournisseurs
+Vous pouvez maintenant créer des factures ! 🎉`;
+        } else {
+          this.message = 'ℹ️ Aucun compte client/fournisseur détecté dans vos données';
+        }
+        
+      } catch (error) {
+        console.error('❌ Erreur création Business Partners:', error);
+        this.message = `❌ Erreur lors de la création des Business Partners: ${error.message}`;
+      }
+    },
+
+    // NOUVEAU: Styles pour les statuts des Business Partners
+    getStatusStyle(status) {
+      switch(status) {
+        case 'created':
+          return { borderLeftColor: '#2ecc71' };
+        case 'existing':
+          return { borderLeftColor: '#3498db' };
+        default:
+          return { borderLeftColor: '#f39c12' };
+      }
+    },
+
+    // NOUVEAU: Texte pour les statuts
+    getStatusText(status) {
+      switch(status) {
+        case 'created':
+          return 'Créé';
+        case 'existing':
+          return 'Existant';
+        default:
+          return 'À créer';
+      }
+    },
+
+    // MÉTHODE PRINCIPALE MODIFIÉE avec création automatique des Business Partners
     async valider() {
       console.log("valeur csv 1: ", this.csvData1);
       console.log("valeur csv 2: ", this.csvData2);
@@ -212,9 +458,9 @@ export default {
       if (valide) {
         try {
           
-          // CORRECTION: Création des comptes avec vérification d'existence
+          // ÉTAPE 1: Créer les comptes comptables
+          console.log('📊 ÉTAPE 1: Création des comptes comptables...');
           for (let k = 0; k < this.csvData2.length; k++) {
-            // Vérifier si le compte existe déjà
             try {
               const existingAccount = await fonction.getIDempiereModelsWhereSelect(
                 token, 
@@ -227,11 +473,9 @@ export default {
               if (existingAccount.records && existingAccount.records.length > 0) {
                 console.log(`⚠️ Compte ${this.csvData2[k].compte} existe déjà - mise à jour du type si nécessaire`);
                 
-                // NOUVEAU: Mettre à jour le type de compte existant
                 const accountType = this.getAccountType(this.csvData2[k].compte);
                 const accountId = existingAccount.records[0].id;
                 
-                // Mettre à jour le type de compte
                 const updateData = {
                   AccountType: accountType
                 };
@@ -240,7 +484,6 @@ export default {
                 console.log(`✅ Compte ${this.csvData2[k].compte} mis à jour - Type: ${accountType}`);
                 
               } else {
-                // Le compte n'existe pas, le créer
                 const accountType = this.getAccountType(this.csvData2[k].compte);
                 
                 let comptedata = {
@@ -261,14 +504,17 @@ export default {
               
             } catch (accountError) {
               console.error(`❌ Erreur avec le compte ${this.csvData2[k].compte}:`, accountError);
-              // Continuer avec les autres comptes
             }
           }
           
-          // NOUVELLE APPROCHE: Créer journaux avec leurs lignes groupées
+          // ÉTAPE 2: NOUVEAU - Créer automatiquement les Business Partners
+          console.log('\n🤖 ÉTAPE 2: Création automatique des Business Partners...');
+          const createdBPartners = await this.createBusinessPartnersFromAccounts();
+          
+          // ÉTAPE 3: Créer les journaux
+          console.log('\n📝 ÉTAPE 3: Création des journaux...');
           const journalGroups = {};
           
-          // Grouper les lignes par référence de journal
           this.csvData1.forEach(line => {
             if (!journalGroups[line.reference]) {
               journalGroups[line.reference] = [];
@@ -343,7 +589,7 @@ export default {
                   Description: journalRef,
                   C_Currency_ID: { id: 100 },
                   GL_Category_ID: { id: 108 },
-                  DocStatus: 'DR', // ← CRITIQUE: Mode DRAFT pour permettre l'ajout de lignes
+                  DocStatus: 'DR',
                   IsActive: true
                 };
                 
@@ -378,15 +624,15 @@ export default {
                   const dateline = fonction.convertirDate(line.date);
                   
                   let journalLinedata = {
-                    GL_Journal_ID: { id: journalId }, // ← CORRECTION: Utiliser l'ID au lieu de l'identifier
+                    GL_Journal_ID: { id: journalId },
                     Account_ID: { id: accountResult.records[0].id },
                     AmtSourceDr: parseFloat(line.debit) || 0,
                     AmtSourceCr: parseFloat(line.credit) || 0,
-                    AmtAcctDr: parseFloat(line.debit) || 0,   // ← AJOUT: Montants comptables
-                    AmtAcctCr: parseFloat(line.credit) || 0, // ← AJOUT: Montants comptables
+                    AmtAcctDr: parseFloat(line.debit) || 0,
+                    AmtAcctCr: parseFloat(line.credit) || 0,
                     C_Currency_ID: { id: 100 },
                     DateAcct: dateline,
-                    Line: (lineIndex + 1) * 10 // ← AJOUT: Numéro de ligne
+                    Line: (lineIndex + 1) * 10
                   };
                   
                   console.log(`  📝 Ligne ${lineIndex + 1}: Compte ${line.compte}, Débit: ${line.debit || 0}, Crédit: ${line.credit || 0}`);
@@ -401,23 +647,23 @@ export default {
               
               console.log(`✅ Journal ${journalRef} terminé: ${successLines} lignes créées, ${errorLines} erreurs`);
               
-              // Optionnel: Compléter le journal si toutes les lignes sont créées avec succès
-              if (errorLines === 0 && successLines > 0) {
-                try {
-                  console.log(`🔄 Tentative de validation du journal ${journalRef}...`);
-                  // Ici vous pourriez ajouter la logique pour valider le journal
-                  // Mais pour l'instant, on le laisse en DRAFT
-                } catch (completeError) {
-                  console.log(`⚠️ Journal créé mais non validé: ${completeError.message}`);
-                }
-              }
-              
             } catch (journalError) {
               console.error(`❌ Erreur fatale avec le journal ${journalRef}:`, journalError);
             }
           }
           
-          this.message = "✅ Import terminé avec succès ! Vérifiez les logs pour le détail par journal. Vos données sont maintenant dans iDempiere avec les bons types de comptes !";
+          // Message de succès avec détails
+          let bPartnerSummary = '';
+          if (createdBPartners.length > 0) {
+            const clients = createdBPartners.filter(bp => bp.type === 'client');
+            const fournisseurs = createdBPartners.filter(bp => bp.type === 'fournisseur');
+            bPartnerSummary = `\n- ${clients.length} clients et ${fournisseurs.length} fournisseurs créés automatiquement`;
+          }
+          
+          this.message = `✅ Import terminé avec succès ! 
+        - Comptes comptables créés/mis à jour
+        - Journaux et écritures créés${bPartnerSummary}
+        🎉 Vous pouvez maintenant créer des factures !`;
           
         } catch (error) {
           console.error("Erreur lors de l'importation:", error);
@@ -427,6 +673,7 @@ export default {
         this.message = `❌ Aucune ligne n'a été insérée : date invalide à la ligne ${ligne}`;
       }
     },
+    
     extractUniqueReferences() {
       const refMap = new Map();
       this.csvData1.forEach((row) => {
@@ -439,6 +686,7 @@ export default {
         date,
       }));
     },
+    
     transformData(data) {
       if (data.nom) {
         data.fullName = data.nom;
@@ -683,6 +931,7 @@ export default {
   background-color: #f8f9fa;
   border-radius: var(--border-radius);
   transition: var(--transition);
+  border-left: 4px solid var(--primary-color);
 }
 
 .reference-item:hover {

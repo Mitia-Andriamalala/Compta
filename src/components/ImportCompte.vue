@@ -32,7 +32,6 @@
 
 <script setup>
 import { ref } from 'vue';
-import { parse } from 'vue/compiler-sfc';
 
 // Données extraites du CSV : tableau d'objets { Value, Name, Description }
 const csvData = ref([]);
@@ -46,56 +45,54 @@ const isLoading = ref(false);
 function handleFileUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
-    const reader = new FileReader();
+  const reader = new FileReader();
 
-    reader.onload = (e) => {
-        const text = e.target.result;
-        parseCSV(text);
-    }
+  reader.onload = (e) => {
+    const text = e.target.result;
+    parseCSV(text);
+  };
 
-    reader.readAsText(file);
+  reader.readAsText(file);
 }
 
-function parseCSV(csvText)
-{
-    //Reset data
-    csvData.value = [];
+function parseCSV(csvText) {
+  // Reset data
+  csvData.value = [];
 
-    const lines = csvText.split('\n').filter(line => line.trim() !== '');
+  const lines = csvText.split('\n').filter(line => line.trim() !== '');
 
-    // Supposons que la 1ère ligne est l'en-tête
-    // Ex: compte,libelle
+  // Supposons que la 1ère ligne est l'en-tête
+  // Ex: compte,libelle
+  const headers = lines[0].split(',').map(header => header.trim());
 
-    const headers = lines[0].split(',').map(header => header.trim());
-    
-    for (let i = 1; i < lines.length; i++) {
-        const cols = lines[i].split(',').map(c => c.trim())
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(',').map(c => c.trim());
 
-        // Créer un objet dynamique selon les headers
-        let obj = {}
-        headers.forEach((header, index) => {
-        obj[header] = cols[index] || ''
-        })
+    // Créer un objet dynamique selon les headers
+    let obj = {};
+    headers.forEach((header, index) => {
+      obj[header] = cols[index] || '';
+    });
 
     // Normaliser l'objet pour notre usage : Value, Name, Description
     csvData.value.push({
       Value: obj.compte || '',
       Name: obj.libelle || '',
       Description: obj.libelle || ''
-    })
+    });
   }
 }
 
 async function importComptes() {
-  importResults.value = []
-  isLoading.value = true
+  importResults.value = [];
+  isLoading.value = true;
 
   // Récupération du token avec la bonne clé
-  const token = sessionStorage.getItem('idempiere_token')
+  const token = sessionStorage.getItem('idempiere_token');
   if (!token) {
-    alert('Token manquant. Veuillez vous connecter.')
-    isLoading.value = false
-    return
+    alert('Token manquant. Veuillez vous connecter.');
+    isLoading.value = false;
+    return;
   }
 
   for (const compte of csvData.value) {
@@ -118,37 +115,35 @@ async function importComptes() {
       IsBankAccount: false,
       IsDetailBPartner: false,
       IsDetailProduct: false
-    }
+    };
 
-    console.log('Payload envoyé à iDempiere:', payload)
+    console.log('Payload envoyé à iDempiere:', payload);
 
     try {
       const response = await fetch('/api/api/v1/models/c_elementvalue', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': Bearer ${token}
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(payload)
-      })
+      });
 
       if (response.ok) {
-        const data = await response.json()
-        console.log('✅ Compte ajouté:', data)
-        importResults.value.push({ ...compte, success: true, id: data.id })
+        const data = await response.json();
+        console.log('✅ Compte ajouté:', data);
+        importResults.value.push({ ...compte, success: true, id: data.id });
       } else {
-        const errorText = await response.text()
-        console.error('Erreur API:', errorText)
-        importResults.value.push({ ...compte, success: false, error: errorText })
+        const errorText = await response.text();
+        console.error('Erreur API:', errorText);
+        importResults.value.push({ ...compte, success: false, error: errorText });
       }
     } catch (error) {
-      console.error('Exception lors de l’import :', error)
-      importResults.value.push({ ...compte, success: false, error: error.message })
+      console.error('Exception lors de l’import :', error);
+      importResults.value.push({ ...compte, success: false, error: error.message });
     }
   }
 
-
-  isLoading.value = false
+  isLoading.value = false;
 }
-
 </script>
