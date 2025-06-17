@@ -40,3 +40,6 @@ ORDER BY DateInvoiced DESC;
 -- Script simple et direct
 DELETE FROM C_InvoiceLine WHERE C_Invoice_ID = 1000006;
 DELETE FROM C_Invoice WHERE C_Invoice_ID = 1000006;
+
+DELETE FROM GL_Journal
+WHERE DocumentNo IN ('REF01', 'REF02', 'REF03', 'REF04');

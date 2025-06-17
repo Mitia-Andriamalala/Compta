@@ -188,18 +188,9 @@
             Évolution financière {{ selectedYear }}
           </h2>
           <div class="chart-controls">
-            <button 
-              @click="changeChartType('line')" 
-              :class="['chart-type-btn', { active: chartType === 'line' }]"
-            >
-              📈 Courbes
-            </button>
-            <button 
-              @click="changeChartType('bar')" 
-              :class="['chart-type-btn', { active: chartType === 'bar' }]"
-            >
-              📊 Barres
-            </button>
+            <div class="chart-type-info">
+              🥧 Répartition en camembert
+            </div>
           </div>
         </div>
         
@@ -339,7 +330,7 @@ export default {
       searchQuery: '',
       showExportMenu: false,
       debugMode: false,
-      chartType: 'line' // Type de graphique par défaut
+      chartType: 'pie' // Toujours en mode camembert
     }
   },
   computed: {
@@ -438,17 +429,6 @@ export default {
     },
     toggleExportMenu() {
       this.showExportMenu = !this.showExportMenu;
-    },
-    changeChartType(type) {
-      console.log('🔄 Changement de type de graphique:', this.chartType, '→', type);
-      this.chartType = type;
-      if (this.chart) {
-        this.chart.destroy();
-        this.chart = null;
-      }
-      setTimeout(() => {
-        this.createChart();
-      }, 100);
     },
     exportData(format) {
       this.showExportMenu = false;
@@ -806,17 +786,47 @@ export default {
                 }
               };
             }
+            // CORRECTION PRINCIPALE : Diagnostic et calcul des revenus adapté
             if (type === 'R') {
               debugSummary.revenueLines++;
-              const amount = line.AmtAcctCr || 0;
+              
+              const debitAmount = line.AmtAcctDr || 0;
+              const creditAmount = line.AmtAcctCr || 0;
+              
+              // Diagnostic détaillé pour identifier le problème
+              console.log(`🔍 DIAGNOSTIC Compte ${accountId} - Débit: ${debitAmount}, Crédit: ${creditAmount}`);
+              console.log(`🔍 DIAGNOSTIC Ligne complète:`, line);
+              
+              // ADAPTATION : Gestion spécifique pour votre système
+              let amount;
+              if (debitAmount > 0 && creditAmount === 0) {
+                // Cas où le revenu est au débit (spécificité possible de votre système)
+                amount = debitAmount;
+                console.log(`💰 REVENUE (débit): ${amount} pour compte ${accountId}`);
+              } else if (creditAmount > 0 && debitAmount === 0) {
+                // Cas normal : revenu au crédit
+                amount = creditAmount;
+                console.log(`💰 REVENUE (crédit): ${amount} pour compte ${accountId}`);
+              } else if (debitAmount > 0 && creditAmount > 0) {
+                // Cas où les deux sont renseignés - prendre le plus élevé
+                amount = Math.max(debitAmount, creditAmount);
+                console.log(`💰 REVENUE (maximum): ${amount} (Dr: ${debitAmount}, Cr: ${creditAmount}) pour compte ${accountId}`);
+              } else {
+                // Cas d'erreur ou montant nul
+                amount = 0;
+                console.log(`⚠️ REVENUE nul ou incohérent - Débit: ${debitAmount}, Crédit: ${creditAmount} pour compte ${accountId}`);
+              }
+              
               debugSummary.totalRevenueAmount += amount;
               monthlySummary[month].chiffre_affaires += amount;
               monthlySummary[month].debug.revenueEntries.push({
                 accountId,
                 amount: amount,
+                amountDr: debitAmount,
+                amountCr: creditAmount,
+                source: amount === debitAmount ? 'debit' : (amount === creditAmount ? 'credit' : 'unknown'),
                 line: line
               });
-              console.log(`💰 REVENUE ajouté: ${amount} pour compte ${accountId}`);
             }
             else if (type === 'E') {
               debugSummary.expenseLines++;
@@ -865,7 +875,7 @@ export default {
       }
     },
     createChart() {
-      console.log('📊 Création du graphique - Type:', this.chartType);
+      console.log('📊 Création du graphique en camembert UX optimisé');
       if (!this.$refs.chartCanvas) {
         console.warn('Canvas non trouvé, graphique non créé');
         return;
@@ -882,201 +892,241 @@ export default {
         console.warn('Pas de données à afficher dans le graphique');
         return;
       }
-      const labels = this.filteredData.map(item => this.formatDate(item.mois));
-      const revenueData = this.filteredData.map(item => item.chiffreAffaires);
-      const expenseData = this.filteredData.map(item => item.charges);
-      const netResultData = this.filteredData.map(item => item.resultatNet);
-      let chartConfig;
-      if (this.chartType === 'line') {
-        chartConfig = {
-          type: 'line',
-          data: {
-            labels: labels,
-            datasets: [
-              {
-                label: 'Chiffre d\'affaires',
-                data: revenueData,
-                borderColor: '#10B981',
-                backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                tension: 0.4,
-                fill: true,
-                pointBackgroundColor: '#10B981',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                pointRadius: 5,
-                pointHoverRadius: 7
-              },
-              {
-                label: 'Charges',
-                data: expenseData,
-                borderColor: '#EF4444',
-                backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                tension: 0.4,
-                fill: true,
-                pointBackgroundColor: '#EF4444',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                pointRadius: 5,
-                pointHoverRadius: 7
-              },
-              {
-                label: 'Résultat net',
-                data: netResultData,
-                borderColor: '#667eea',
-                backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                tension: 0.4,
-                fill: true,
-                pointBackgroundColor: '#667eea',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                pointRadius: 5,
-                pointHoverRadius: 7
-              }
-            ]
+      
+      // Préparer les données pour le camembert
+      const monthData = this.filteredData[0]; // Premier (et unique) mois
+      const chiffreAffaires = monthData.chiffreAffaires || 0;
+      const charges = monthData.charges || 0;
+      const total = chiffreAffaires + charges;
+      
+      console.log('📊 Données du camembert UX:', {
+        chiffreAffaires: chiffreAffaires,
+        charges: charges,
+        total: total,
+        mois: monthData.mois
+      });
+
+      // Configuration UX optimisée pour le camembert
+      const chartConfig = {
+        type: 'doughnut', // Doughnut pour un look plus moderne
+        data: {
+          labels: [
+            'Chiffre d\'affaires',
+            'Charges totales'
+          ],
+          datasets: [{
+            data: [chiffreAffaires, charges],
+            backgroundColor: [
+              'rgba(16, 185, 129, 0.8)', // Vert avec transparence
+              'rgba(239, 68, 68, 0.8)'   // Rouge avec transparence
+            ],
+            borderColor: [
+              '#10B981',
+              '#EF4444'
+            ],
+            borderWidth: 4,
+            hoverBackgroundColor: [
+              'rgba(16, 185, 129, 1)', // Plus opaque au hover
+              'rgba(239, 68, 68, 1)'
+            ],
+            hoverBorderColor: [
+              '#059669',
+              '#DC2626'
+            ],
+            hoverBorderWidth: 6,
+            hoverOffset: 20, // Effet de sortie plus prononcé
+            cutout: '45%', // Trou au centre pour le style doughnut
+            spacing: 3, // Espacement entre les segments
+            borderRadius: 8, // Coins arrondis
+            borderJoinStyle: 'round'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: {
+            animateRotate: true,
+            animateScale: true,
+            duration: 1200,
+            easing: 'easeInOutBack' // Animation plus dynamique
           },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: {
-              duration: 750,
-              easing: 'easeInOutQuart'
+          plugins: {
+            legend: {
+              display: false // Masquer la légende par défaut pour créer la nôtre
             },
-            plugins: {
-              legend: {
-                position: 'bottom',
-                labels: {
-                  usePointStyle: true,
-                  padding: 20,
-                  font: { size: 14 }
+            tooltip: {
+              enabled: true,
+              backgroundColor: 'rgba(17, 24, 39, 0.95)',
+              titleColor: '#F9FAFB',
+              bodyColor: '#F9FAFB',
+              borderColor: '#374151',
+              borderWidth: 2,
+              cornerRadius: 16,
+              displayColors: false,
+              padding: 20,
+              titleFont: {
+                size: 16,
+                weight: 'bold'
+              },
+              bodyFont: {
+                size: 14,
+                weight: '500'
+              },
+              titleSpacing: 10,
+              bodySpacing: 8,
+              callbacks: {
+                title: (context) => {
+                  return context[0].label;
+                },
+                label: (context) => {
+                  const value = context.parsed;
+                  const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                  return [
+                    `💰 ${this.formatCurrency(value)}`,
+                    `📊 ${percentage}% du total`
+                  ];
+                },
+                afterBody: (context) => {
+                  const dataIndex = context[0].dataIndex;
+                  if (dataIndex === 0) {
+                    return '\n✨ Revenus générés ce mois';
+                  } else {
+                    return '\n⚡ Dépenses du mois';
+                  }
                 }
               },
-              tooltip: {
-                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                titleColor: '#fff',
-                bodyColor: '#fff',
-                borderColor: '#374151',
-                borderWidth: 1,
-                cornerRadius: 8,
-                displayColors: true,
-                callbacks: {
-                  label: (context) => `${context.dataset.label}: ${this.formatCurrency(context.parsed.y)}`
-                }
-              }
-            },
-            scales: {
-              x: {
-                grid: { display: false },
-                ticks: { font: { size: 12 } }
-              },
-              y: {
-                beginAtZero: true,
-                grid: { color: 'rgba(0, 0, 0, 0.05)' },
-                ticks: {
-                  callback: (value) => this.formatCurrency(value),
-                  font: { size: 12 }
-                }
+              external: function(context) {
+                // Animation custom du tooltip
+                const tooltip = context.tooltip;
+                if (tooltip.opacity === 0) return;
+                
+                // Ajouter une ombre au tooltip
+                const canvas = context.chart.canvas;
+                const ctx = canvas.getContext('2d');
               }
             }
-          }
-        };
-      } else {
-        chartConfig = {
-          type: 'bar',
-          data: {
-            labels: labels,
-            datasets: [
-              {
-                label: 'Chiffre d\'affaires',
-                data: revenueData,
-                backgroundColor: '#10B981',
-                borderColor: '#10B981',
-                borderWidth: 1
-              },
-              {
-                label: 'Charges',
-                data: expenseData,
-                backgroundColor: '#EF4444',
-                borderColor: '#EF4444',
-                borderWidth: 1
-              },
-              {
-                label: 'Résultat net',
-                data: netResultData,
-                backgroundColor: '#667eea',
-                borderColor: '#667eea',
-                borderWidth: 1
-              }
-            ]
           },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: false,
-            animations: false,
-            transitions: {
-              active: {
-                animation: {
-                  duration: 0
-                }
-              }
-            },
-            plugins: {
-              legend: {
-                position: 'bottom',
-                labels: {
-                  padding: 20,
-                  font: { size: 14 }
-                }
-              },
-              tooltip: {
-                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                titleColor: '#fff',
-                bodyColor: '#fff',
-                borderColor: '#374151',
-                borderWidth: 1,
-                cornerRadius: 8,
-                displayColors: true,
-                animation: false,
-                callbacks: {
-                  label: (context) => `${context.dataset.label}: ${this.formatCurrency(context.parsed.y)}`
-                }
-              }
-            },
-            scales: {
-              x: {
-                grid: { display: false },
-                ticks: { font: { size: 12 } }
-              },
-              y: {
-                beginAtZero: true,
-                grid: { color: 'rgba(0, 0, 0, 0.05)' },
-                ticks: {
-                  callback: (value) => this.formatCurrency(value),
-                  font: { size: 12 }
-                }
+          elements: {
+            arc: {
+              borderJoinStyle: 'round',
+              borderAlign: 'center'
+            }
+          },
+          layout: {
+            padding: {
+              top: 30,
+              bottom: 30,
+              left: 30,
+              right: 30
+            }
+          },
+          // Plugin pour ajouter du texte au centre
+          plugins: [
+            {
+              id: 'centerText',
+              beforeDraw: (chart) => {
+                const { width, height, ctx } = chart;
+                ctx.restore();
+                
+                // Calculer le centre
+                const centerX = width / 2;
+                const centerY = height / 2;
+                
+                // Configuration du texte
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                
+                // Titre principal
+                ctx.fillStyle = '#1F2937';
+                ctx.font = 'bold 16px Inter, sans-serif';
+                ctx.fillText('Juin 2025', centerX, centerY - 15);
+                
+                // Sous-titre
+                ctx.fillStyle = '#6B7280';
+                ctx.font = '500 12px Inter, sans-serif';
+                ctx.fillText(`Total: ${this.formatCurrency(total)}`, centerX, centerY + 5);
+                
+                ctx.save();
               }
             }
-          }
-        };
-      }
+          ]
+        }
+      };
+      
       try {
-        console.log('🚀 Tentative de création du graphique...');
+        console.log('🚀 Création du camembert UX optimisé...');
         this.chart = new Chart(ctx, chartConfig);
-        console.log('✅ Graphique créé avec succès - Type:', this.chartType);
+        console.log('✅ Camembert UX créé avec succès');
+        
         if (!this.chart) {
-          throw new Error('Le graphique n\'a pas pu être créé');
+          throw new Error('Le camembert n\'a pas pu être créé');
         }
+        
+        // Créer une légende personnalisée après le graphique
+        this.createCustomLegend(chiffreAffaires, charges, total);
+        
       } catch (error) {
-        console.error('❌ Erreur lors de la création du graphique:', error);
+        console.error('❌ Erreur lors de la création du camembert UX:', error);
         this.chart = null;
-        if (this.chartType === 'bar') {
-          console.log('⚠️ Problème avec le graphique en barres, basculement vers ligne...');
-          setTimeout(() => {
-            this.chartType = 'line';
-            this.createChart();
-          }, 500);
-        }
       }
+    },
+
+    createCustomLegend(chiffreAffaires, charges, total) {
+      // Attendre que le DOM soit prêt
+      this.$nextTick(() => {
+        const chartContainer = this.$refs.chartCanvas?.parentElement;
+        if (!chartContainer) return;
+        
+        // Supprimer l'ancienne légende si elle existe
+        const existingLegend = chartContainer.querySelector('.custom-legend');
+        if (existingLegend) {
+          existingLegend.remove();
+        }
+        
+        // Créer la nouvelle légende
+        const legendContainer = document.createElement('div');
+        legendContainer.className = 'custom-legend';
+        legendContainer.innerHTML = `
+          <div class="legend-grid">
+            <div class="legend-item revenue-item">
+              <div class="legend-indicator">
+                <div class="legend-dot revenue-dot"></div>
+                <div class="legend-bar revenue-bar"></div>
+              </div>
+              <div class="legend-content">
+                <div class="legend-label">Chiffre d'affaires</div>
+                <div class="legend-value">${this.formatCurrency(chiffreAffaires)}</div>
+                <div class="legend-percentage">${total > 0 ? ((chiffreAffaires / total) * 100).toFixed(1) : 0}% du total</div>
+              </div>
+            </div>
+            
+            <div class="legend-item expense-item">
+              <div class="legend-indicator">
+                <div class="legend-dot expense-dot"></div>
+                <div class="legend-bar expense-bar"></div>
+              </div>
+              <div class="legend-content">
+                <div class="legend-label">Charges totales</div>
+                <div class="legend-value">${this.formatCurrency(charges)}</div>
+                <div class="legend-percentage">${total > 0 ? ((charges / total) * 100).toFixed(1) : 0}% du total</div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="legend-summary">
+            <div class="summary-item">
+              <span class="summary-label">Total engagé:</span>
+              <span class="summary-value">${this.formatCurrency(total)}</span>
+            </div>
+            <div class="summary-item ${monthData.resultatNet >= 0 ? 'positive' : 'negative'}">
+              <span class="summary-label">Résultat:</span>
+              <span class="summary-value">${this.formatCurrency(monthData.resultatNet)}</span>
+            </div>
+          </div>
+        `;
+        
+        chartContainer.appendChild(legendContainer);
+      });
     },
     navigateToDetail(indicator) {
       console.log(`🔍 Navigation vers détail: ${indicator}`);
@@ -1129,16 +1179,6 @@ export default {
         });
       },
       deep: true
-    },
-    chartType: {
-      handler(newType, oldType) {
-        console.log(`📈 Changement de type de graphique: ${oldType} → ${newType}`);
-        if (this.filteredData && this.filteredData.length > 0) {
-          this.$nextTick(() => {
-            this.createChart();
-          });
-        }
-      }
     }
   },
   async mounted() {
@@ -1672,27 +1712,17 @@ export default {
   border-radius: 12px;
 }
 
-.chart-type-btn {
-  padding: 0.5rem 1rem;
-  border: none;
+.chart-type-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #f8fafc;
   border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  background: transparent;
-  color: #6b7280;
-}
-
-.chart-type-btn.active {
-  background: white;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
   color: #667eea;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.chart-type-btn:hover:not(.active) {
-  color: #374151;
-  background: rgba(255, 255, 255, 0.5);
+  font-weight: 500;
+  border: 1px solid #e2e8f0;
 }
 
 .chart-container {
@@ -2006,6 +2036,178 @@ export default {
 .btn-reload:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+/* Custom Legend Styles */
+.custom-legend {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+.legend-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.legend-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.legend-indicator {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.legend-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  z-index: 2;
+  border: 3px solid white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.legend-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 50%;
+  opacity: 0.15;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 0.15; }
+  50% { transform: scale(1.1); opacity: 0.25; }
+}
+
+.revenue-dot {
+  background: #10B981;
+}
+
+.revenue-bar {
+  background: #10B981;
+}
+
+.expense-dot {
+  background: #EF4444;
+}
+
+.expense-bar {
+  background: #EF4444;
+}
+
+.legend-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.legend-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.legend-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1F2937;
+  font-family: 'Monaco', 'Consolas', monospace;
+}
+
+.legend-percentage {
+  font-size: 0.8rem;
+  color: #6B7280;
+  font-weight: 500;
+}
+
+.legend-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
+  border-radius: 12px;
+  border: 1px solid #E2E8F0;
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.summary-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.summary-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-family: 'Monaco', 'Consolas', monospace;
+}
+
+.summary-item.positive .summary-value {
+  color: #10B981;
+}
+
+.summary-item.negative .summary-value {
+  color: #EF4444;
+}
+
+/* Responsive pour la légende */
+@media (max-width: 768px) {
+  .legend-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .legend-summary {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .custom-legend {
+    margin-top: 1rem;
+    padding: 1rem;
+  }
 }
 
 /* Responsive Design */

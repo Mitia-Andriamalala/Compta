@@ -134,6 +134,12 @@
           </button>
         </div>
       </div>
+      <button @click="valider" class="validate-button" :disabled="!isMappingValid">
+          <i class="fas fa-check-circle button-icon"></i>
+          Graphique Compte
+        </button>
+  
+    
 
       <div class="table-card">
         <div class="table-wrapper">
@@ -879,6 +885,23 @@ export default {
 
 .metric-icon.credit {
   background: linear-gradient(135deg, #51cf66, #40c057);
+}
+.validate-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: var(--primary-color);
+  color: blue;
+  border: none;
+  border-radius: var(--border-radius);
+  padding: 0.8rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  width: 100%;
+  margin-top: 1rem;
 }
 
 .metric-icon {

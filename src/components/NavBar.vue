@@ -28,6 +28,51 @@
           <span class="notification-badge" v-if="link.notification">{{ link.notification }}</span>
         </router-link>
 
+        <!-- Dropdown pour Comptabilité -->
+        <div class="nav-dropdown" @mouseenter="showComptabiliteMenu" @mouseleave="hideComptabiliteMenu">
+          <div class="nav-link dropdown-trigger" :class="{ 'active': isComptabiliteActive }">
+            <div class="nav-link-content">
+              <span class="link-icon">📚</span>
+              <span class="link-text">Comptabilité</span>
+              <span class="dropdown-arrow" :class="{ 'rotate': isComptabiliteMenuOpen }">▼</span>
+              <div class="link-underline"></div>
+            </div>
+          </div>
+          
+          <transition name="dropdown-fade">
+            <div class="dropdown-menu" v-if="isComptabiliteMenuOpen">
+              <router-link to="/balance" class="dropdown-item" @click="closeMobileMenu">
+                <span class="dropdown-icon">📖</span>
+                <div class="dropdown-content">
+                  <span class="dropdown-title">Liste des Comptes</span>
+                  <span class="dropdown-desc">Consulter tous les comptes</span>
+                </div>
+              </router-link>
+              <router-link to="/ecritures-comptables" class="dropdown-item new-item" @click="closeMobileMenu">
+                <span class="dropdown-icon">📝</span>
+                <div class="dropdown-content">
+                  <span class="dropdown-title">Écritures Comptables</span>
+                  <span class="dropdown-desc">Gérer les écritures</span>
+                </div>
+              </router-link>
+              <router-link to="/tous-les-comptes" class="dropdown-item" @click="closeMobileMenu">
+                <span class="dropdown-icon">📚</span>
+                <div class="dropdown-content">
+                  <span class="dropdown-title">Tous les Livres de Compte</span>
+                  <span class="dropdown-desc">Vue d'ensemble complète</span>
+                </div>
+              </router-link>
+              <router-link to="/livreCompte" class="dropdown-item" @click="closeMobileMenu">
+                <span class="dropdown-icon">📋</span>
+                <div class="dropdown-content">
+                  <span class="dropdown-title">Livre de Compte</span>
+                  <span class="dropdown-desc">Détails d'un compte</span>
+                </div>
+              </router-link>
+            </div>
+          </transition>
+        </div>
+
         <!-- Dropdown pour Facturation -->
         <div class="nav-dropdown" @mouseenter="showFacturationMenu" @mouseleave="hideFacturationMenu">
           <div class="nav-link dropdown-trigger" :class="{ 'active': isFacturationActive }">
@@ -121,6 +166,31 @@
           <span class="notification-badge" v-if="link.notification">{{ link.notification }}</span>
         </router-link>
         
+        <!-- Section Comptabilité mobile -->
+        <div class="mobile-section">
+          <div class="mobile-section-title">
+            <span class="mobile-icon">📚</span>
+            <span>Comptabilité</span>
+          </div>
+          <router-link to="/balance" class="mobile-nav-link sub-link" @click="toggleMobileMenu">
+            <span class="mobile-icon">📖</span>
+            <span class="link-text">Liste des Comptes</span>
+          </router-link>
+          <router-link to="/ecritures-comptables" class="mobile-nav-link sub-link new-mobile-item" @click="toggleMobileMenu">
+            <span class="mobile-icon">📝</span>
+            <span class="link-text">Écritures Comptables</span>
+            <span class="new-badge">✨</span>
+          </router-link>
+          <router-link to="/tous-les-comptes" class="mobile-nav-link sub-link" @click="toggleMobileMenu">
+            <span class="mobile-icon">📚</span>
+            <span class="link-text">Tous les Livres de Compte</span>
+          </router-link>
+          <router-link to="/livreCompte" class="mobile-nav-link sub-link" @click="toggleMobileMenu">
+            <span class="mobile-icon">📋</span>
+            <span class="link-text">Livre de Compte</span>
+          </router-link>
+        </div>
+        
         <!-- Section Facturation mobile -->
         <div class="mobile-section">
           <div class="mobile-section-title">
@@ -172,11 +242,12 @@ export default {
       isMobileMenuOpen: false,
       isUserMenuOpen: false,
       isFacturationMenuOpen: false,
+      isComptabiliteMenuOpen: false,
       facturationMenuTimeout: null,
+      comptabiliteMenuTimeout: null,
       navLinks: [
         { path: '/', icon: '🏠', text: 'Accueil', notification: 0 },
         { path: '/import', icon: '📤', text: 'Import CSV', notification: 2 },
-        { path: '/balance', icon: '📚', text: 'Livre de compte', notification: 0 },
         { path: '/financial-dashboard', icon: '📈', text: 'Tableau de bord', notification: 0 },
         { path: '/rapports', icon: '📊', text: 'Rapports', notification: 5 }
       ]
@@ -189,6 +260,10 @@ export default {
     isFacturationActive() {
       const facturationRoutes = ['/factures', '/facture-creation', '/reglement', '/nouvelle-facture'];
       return facturationRoutes.includes(this.$route.path);
+    },
+    isComptabiliteActive() {
+      const comptabiliteRoutes = ['/balance', '/livreCompte', '/tous-les-comptes', '/livres-compte', '/vue-ensemble-comptes', '/dashboard-comptes', '/ecritures-comptables'];
+      return comptabiliteRoutes.includes(this.$route.path);
     }
   },
   methods: {
@@ -202,6 +277,7 @@ export default {
       this.isMobileMenuOpen = false;
       this.isUserMenuOpen = false;
       this.isFacturationMenuOpen = false;
+      this.isComptabiliteMenuOpen = false;
     },
     toggleUserMenu() {
       this.isUserMenuOpen = !this.isUserMenuOpen;
@@ -218,6 +294,17 @@ export default {
     hideFacturationMenu() {
       this.facturationMenuTimeout = setTimeout(() => {
         this.isFacturationMenuOpen = false;
+      }, 200);
+    },
+    showComptabiliteMenu() {
+      if (this.comptabiliteMenuTimeout) {
+        clearTimeout(this.comptabiliteMenuTimeout);
+      }
+      this.isComptabiliteMenuOpen = true;
+    },
+    hideComptabiliteMenu() {
+      this.comptabiliteMenuTimeout = setTimeout(() => {
+        this.isComptabiliteMenuOpen = false;
       }, 200);
     },
     logout() {
@@ -285,7 +372,7 @@ export default {
   min-height: 80px;
 }
 
-/* Logo Section - Style cohérent avec les pages */
+/* Logo Section */
 .navbar-brand {
   display: flex;
   align-items: center;
@@ -436,7 +523,6 @@ export default {
   background: linear-gradient(135deg, #667eea, #764ba2);
   border-radius: 2px;
   transition: all 0.3s ease;
-  transform: translateX(-50%);
 }
 
 .nav-link:hover .link-underline {
@@ -522,6 +608,8 @@ export default {
   transition: all 0.2s ease;
   cursor: pointer;
   margin-bottom: 0.25rem;
+  position: relative;
+  overflow: hidden;
 }
 
 .dropdown-item:last-child {
@@ -550,11 +638,60 @@ export default {
 .dropdown-title {
   font-weight: 600;
   font-size: 0.9rem;
+  position: relative;
 }
 
 .dropdown-desc {
   font-size: 0.8rem;
   color: #64748b;
+}
+
+/* Badge "nouveau" pour la nouvelle page */
+.new-item .dropdown-title::after {
+  content: '✨ Nouveau';
+  font-size: 0.7rem;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  padding: 0.15rem 0.4rem;
+  border-radius: 12px;
+  margin-left: 0.5rem;
+  font-weight: 700;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+}
+
+/* Effet de brillance sur les éléments nouveaux */
+.new-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.2), transparent);
+  animation: shine 3s ease-in-out infinite;
+}
+
+@keyframes shine {
+  0% {
+    left: -100%;
+  }
+  50% {
+    left: 100%;
+  }
+  100% {
+    left: 100%;
+  }
 }
 
 /* Notification Badge */
@@ -776,7 +913,6 @@ export default {
   height: 3px;
   background: #374151;
   border-radius: 2px;
-  transition: all 0.3s ease;
 }
 
 .mobile-menu-button.active .hamburger span:nth-child(1) {
@@ -870,9 +1006,8 @@ export default {
   gap: 1rem;
   padding: 1rem 2rem;
   font-weight: 700;
-  color: #374151;
-  background: linear-gradient(135deg, #667eea, #764ba2);
   color: white;
+  background: linear-gradient(135deg, #667eea, #764ba2);
   margin: 0 1rem 0.5rem 1rem;
   border-radius: 12px;
 }
@@ -883,11 +1018,34 @@ export default {
   background: #f8fafc;
   margin: 0.25rem 1rem;
   border-radius: 8px;
+  position: relative;
 }
 
 .sub-link:hover {
   background: white;
   border-left: 4px solid #667eea;
+}
+
+/* Badge pour le nouvel élément mobile */
+.new-mobile-item {
+  position: relative;
+}
+
+.new-badge {
+  position: absolute;
+  top: 50%;
+  right: 1rem;
+  transform: translateY(-50%);
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  animation: pulse 2s infinite;
 }
 
 /* Mobile User Section */
@@ -964,7 +1122,8 @@ export default {
 }
 
 @media (max-width: 768px) {
-  .navbar-links, .navbar-user {
+  .navbar-links, 
+  .navbar-user {
     display: none;
   }
 
@@ -1054,7 +1213,7 @@ export default {
   }
 }
 
-/* Style pour les états actifs des éléments de facturation */
+/* Style pour les états actifs des éléments de facturation et comptabilité */
 .nav-dropdown .active .nav-link-content {
   color: #667eea;
   background: white;
@@ -1073,5 +1232,31 @@ export default {
     left: auto;
     min-width: 260px;
   }
+  
+  .nav-dropdown:first-of-type .dropdown-menu {
+    left: 0;
+    right: auto;
+  }
 }
+
+/* Animation d'entrée pour les nouveaux éléments */
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.dropdown-item {
+  animation: slideInFromLeft 0.3s ease-out;
+}
+
+.dropdown-item:nth-child(1) { animation-delay: 0.1s; }
+.dropdown-item:nth-child(2) { animation-delay: 0.2s; }
+.dropdown-item:nth-child(3) { animation-delay: 0.3s; }
+.dropdown-item:nth-child(4) { animation-delay: 0.4s; }
 </style>

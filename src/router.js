@@ -3,12 +3,15 @@ import Compte from './components/Compte.vue'
 import Import from './components/Import.vue'
 import Login from './components/Login.vue'
 import LivreCompte from './components/LivreCompte.vue'
+import AllAccountBooks from './components/AllAccountBooks.vue'
 import Balance from './components/Balance.vue'
 import FinancialDashboard from './components/FinancialDashboard.vue'
-import FinancialDetail from './components/FinancialDetail.vue' // NOUVEAU composant
+import FinancialDetail from './components/FinancialDetail.vue'
 import Rapport from './components/Rapport.vue'
 import FactureList from './components/FactureList.vue'
 import FactureCreation from './components/FactureCreation.vue'
+import AccountingEntries from './components/AccountingEntries.vue' // NOUVEAU composant
+import Graphiques from './components/Graphiques.vue' // NOUVEAU composant pour les graphiques
 
 const routes = [
   {
@@ -46,6 +49,76 @@ const routes = [
       description: 'Consultez les écritures comptables détaillées'
     }
   },
+  // NOUVELLE ROUTE pour la saisie d'écritures comptables
+  {
+    path: '/ecritures-comptables',
+    name: 'AccountingEntries',
+    component: AccountingEntries,
+    meta: { 
+      requiresAuth: true,
+      title: 'Saisie d\'Écritures Comptables',
+      description: 'Saisissez et gérez vos écritures comptables avec le plan de comptes',
+      icon: '📝',
+      category: 'comptabilite'
+    }
+  },
+  // Routes alternatives pour une meilleure UX de saisie
+  {
+    path: '/saisie-ecritures',
+    redirect: '/ecritures-comptables'
+  },
+  {
+    path: '/journal-comptable',
+    redirect: '/ecritures-comptables'
+  },
+  {
+    path: '/nouvelle-ecriture',
+    name: 'NewEntry',
+    component: AccountingEntries,
+    meta: {
+      requiresAuth: true,
+      title: 'Nouvelle Écriture Comptable',
+      description: 'Créez une nouvelle écriture comptable',
+      defaultMode: 'entry' // Pour ouvrir directement le formulaire d'écriture
+    }
+  },
+  {
+    path: '/plan-comptable',
+    name: 'ChartOfAccounts',
+    component: AccountingEntries,
+    meta: {
+      requiresAuth: true,
+      title: 'Plan Comptable',
+      description: 'Gérez votre plan de comptes',
+      defaultMode: 'accounts' // Pour ouvrir directement la section plan de comptes
+    }
+  },
+  // ROUTE pour tous les livres de compte
+  {
+    path: '/tous-les-comptes',
+    name: 'AllAccountBooks',
+    component: AllAccountBooks,
+    meta: { 
+      requiresAuth: true,
+      title: 'Tous les Livres de Compte',
+      description: 'Vue d\'ensemble de tous les comptes avec leurs totaux et soldes',
+      icon: '📚',
+      category: 'comptabilite'
+    }
+  },
+  // Routes alternatives pour une meilleure UX
+  {
+    path: '/livres-compte',
+    redirect: '/tous-les-comptes'
+  },
+  {
+    path: '/vue-ensemble-comptes',
+    redirect: '/tous-les-comptes'
+  },
+  {
+    path: '/dashboard-comptes',
+    redirect: '/tous-les-comptes'
+  },
   {
     path: '/import',
     name: 'Import',
@@ -66,7 +139,8 @@ const routes = [
       description: 'Vue d\'ensemble de votre situation financière'
     }
   },
-  // NOUVELLE ROUTE pour les détails financiers
+  
+  // ROUTE pour les détails financiers
   {
     path: '/financial-detail/:indicator/:year',
     name: 'FinancialDetail',
@@ -102,6 +176,36 @@ const routes = [
         next({ name: 'FinancialDashboard' })
       }
     }
+  },
+  // NOUVELLE ROUTE pour les graphiques et visualisations
+  {
+    path: '/graphiques',
+    name: 'Graphiques',
+    component: Graphiques,
+    meta: {
+      requiresAuth: true,
+      title: 'Graphiques et Visualisations',
+      description: 'Visualisez vos données comptables et financières sous forme de graphiques',
+      icon: '📊',
+      category: 'analytics'
+    }
+  },
+  // Routes alternatives pour les graphiques
+  {
+    path: '/analytics',
+    redirect: '/graphiques'
+  },
+  {
+    path: '/visualisations',
+    redirect: '/graphiques'
+  },
+  {
+    path: '/charts',
+    redirect: '/graphiques'
+  },
+  {
+    path: '/dashboard-graphiques',
+    redirect: '/graphiques'
   },
   {
     path: '/rapports',
@@ -199,6 +303,13 @@ router.beforeEach((to, from, next) => {
       pageTitle = `${indicatorName} ${to.params.year} - Détail Financier`
     }
     
+    // Personnaliser le titre pour les écritures comptables
+    if (to.name === 'NewEntry') {
+      pageTitle = 'Nouvelle Écriture - Saisie Comptable'
+    } else if (to.name === 'ChartOfAccounts') {
+      pageTitle = 'Plan Comptable - Gestion des Comptes'
+    }
+    
     document.title = `${pageTitle} - Système Comptable`
   } else {
     document.title = 'Système Comptable'
@@ -216,6 +327,25 @@ router.beforeEach((to, from, next) => {
       fromPage: from.name
     })
   }
+
+  // Log spécial pour la page tous les comptes
+  if (to.name === 'AllAccountBooks') {
+    console.log(`📚 Accès vue d'ensemble des comptes depuis:`, from.name)
+  }
+
+  // Log spécial pour les écritures comptables
+  if (['AccountingEntries', 'NewEntry', 'ChartOfAccounts'].includes(to.name)) {
+    console.log(`📝 Accès module écritures comptables:`, {
+      page: to.name,
+      mode: to.meta.defaultMode || 'full',
+      fromPage: from.name
+    })
+  }
+
+  // Log spécial pour les graphiques
+  if (to.name === 'Graphiques') {
+    console.log(`📊 Accès module graphiques depuis:`, from.name)
+  }
  
   // Gestion des paramètres spéciaux pour certaines pages
   if (to.name === 'Reglement' && to.meta.defaultTab) {
@@ -224,6 +354,17 @@ router.beforeEach((to, from, next) => {
       next({
         ...to,
         query: { ...to.query, tab: to.meta.defaultTab }
+      })
+      return
+    }
+  }
+
+  // Gestion des modes par défaut pour les écritures comptables
+  if (['NewEntry', 'ChartOfAccounts'].includes(to.name) && to.meta.defaultMode) {
+    if (!to.query.mode) {
+      next({
+        ...to,
+        query: { ...to.query, mode: to.meta.defaultMode }
       })
       return
     }
@@ -254,6 +395,42 @@ router.afterEach((to, from) => {
           indicator: to.params.indicator,
           year: to.params.year,
           timestamp: new Date().toISOString()
+        })
+      }
+    }
+
+    // Log spécifique pour les modules comptables
+    if (to.meta.category === 'comptabilite') {
+      console.log(`📋 Accès module comptabilité: ${to.meta.title}`)
+      
+      // Pour la vue d'ensemble des comptes
+      if (to.name === 'AllAccountBooks') {
+        console.log(`📚 Vue d'ensemble des comptes consultée:`, {
+          timestamp: new Date().toISOString(),
+          fromPage: from.name
+        })
+      }
+
+      // Pour les écritures comptables
+      if (['AccountingEntries', 'NewEntry', 'ChartOfAccounts'].includes(to.name)) {
+        console.log(`📝 Module écritures comptables consulté:`, {
+          page: to.name,
+          mode: to.query.mode || 'full',
+          timestamp: new Date().toISOString(),
+          fromPage: from.name
+        })
+      }
+    }
+
+    // Log spécifique pour les graphiques et analytics
+    if (to.meta.category === 'analytics') {
+      console.log(`📊 Accès module analytics: ${to.meta.title}`)
+      
+      // Pour les graphiques
+      if (to.name === 'Graphiques') {
+        console.log(`📈 Module graphiques consulté:`, {
+          timestamp: new Date().toISOString(),
+          fromPage: from.name
         })
       }
     }

@@ -1,0 +1,3 @@
+saisie ecriture : Journal OD  ( New app)
+balance : sous total par classe par compte  classe 1 par compte ( sous total) 1 a jusqu a 7 les comptes 
+Lien graphique solde par jour des balances ( evolution solde par jours )    
