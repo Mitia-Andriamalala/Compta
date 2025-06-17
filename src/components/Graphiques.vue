@@ -24,6 +24,23 @@
 
     <!-- Main Content -->
     <div v-else class="main-container">
+      <!-- Debug Section (à supprimer une fois que ça marche) -->
+      <div class="debug-section" style="background: #fee2e2; border: 2px solid #fca5a5; border-radius: 8px; padding: 1rem; margin-bottom: 2rem;">
+        <h4 style="color: #dc2626; margin: 0 0 1rem 0;">🐛 Debug des Graphiques</h4>
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+          <button @click="debugChartState" style="background: #3b82f6; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;">
+            🔍 État des Graphiques
+          </button>
+          <button @click="forceRecreateCharts" style="background: #059669; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;">
+            🔄 Recréer les Graphiques
+          </button>
+          <div style="font-size: 0.9rem; color: #374151;">
+            Mode: {{ mode }} | Charts: {{ Object.keys(charts).length }} | 
+            Chart.js: {{ chartJsLoaded ? '✅' : '❌' }}
+          </div>
+        </div>
+      </div>
+
       <!-- Controls -->
       <div class="controls-section">
         <div class="controls-card">
@@ -144,6 +161,7 @@ export default {
   data() {
     return {
       loading: true,
+      chartJsLoaded: false,
       mode: 'class', // 'class' ou 'global'
       selectedClass: null,
       period: '30',
@@ -244,13 +262,24 @@ export default {
         // Charger Chart.js
         console.log('📦 Chargement de Chart.js...');
         await this.loadChartJS();
-        console.log('✅ Chart.js chargé, création des graphiques...');
+        console.log('✅ Chart.js chargé, attente du DOM...');
         
-        // Attendre que le DOM soit prêt
-        await this.$nextTick();
+        // IMPORTANT: Attendre que le DOM soit complètement prêt
+        const domReady = await this.waitForDOM();
         
-        // Créer les graphiques
-        this.createCharts();
+        if (domReady) {
+          console.log('🎯 DOM prêt, création des graphiques...');
+          // Créer les graphiques
+          this.createCharts();
+        } else {
+          console.warn('⚠️ DOM non prêt, tentative de création différée...');
+          // Tentative différée
+          setTimeout(() => {
+            console.log('🔄 Tentative différée de création des graphiques...');
+            this.createCharts();
+          }, 500);
+        }
+        
         this.calculateStats();
         
         console.log('🎉 Initialisation terminée');
@@ -261,29 +290,72 @@ export default {
         this.loading = false;
       }
     },
+
+    async waitForDOM() {
+      console.log('⏳ Attente du DOM...');
+      
+      // Attendre plusieurs cycles
+      for (let i = 0; i < 5; i++) {
+        await this.$nextTick();
+      }
+      
+      // Attendre que les canvas soient disponibles
+      let attempts = 0;
+      const maxAttempts = 10;
+      
+      while (attempts < maxAttempts) {
+        console.log(`🔍 Tentative ${attempts + 1}/${maxAttempts} - Vérification des refs...`);
+        
+        if (this.mode === 'class') {
+          if (this.$refs.mainChart && this.$refs.pieChart) {
+            console.log('✅ Refs de classe trouvées !');
+            return true; // Succès
+          }
+        } else if (this.mode === 'global') {
+          if (this.$refs.globalChart && this.$refs.classesChart) {
+            console.log('✅ Refs globales trouvées !');
+            return true; // Succès
+          }
+        }
+        
+        console.log('⏳ Refs non disponibles, attente...');
+        await new Promise(resolve => setTimeout(resolve, 100));
+        await this.$nextTick();
+        attempts++;
+      }
+      
+      // Log final des refs
+      console.log('🔍 État final des refs:', {
+        mainChart: !!this.$refs.mainChart,
+        pieChart: !!this.$refs.pieChart,
+        globalChart: !!this.$refs.globalChart,
+        classesChart: !!this.$refs.classesChart
+      });
+      
+      return false; // Échec
+    },
     
     async loadChartJS() {
       return new Promise((resolve, reject) => {
         // Vérifier si Chart.js est déjà disponible
         if (typeof Chart !== 'undefined') {
           console.log('✅ Chart.js déjà chargé');
+          this.chartJsLoaded = true;
           resolve();
           return;
         }
         
         console.log('📦 Chargement de Chart.js...');
         
-        // CHANGEMENT IMPORTANT : Utiliser la version UMD au lieu de la version minifiée
         const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.js'; // ← UMD au lieu de min.js
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.js';
         script.crossOrigin = 'anonymous';
-        script.integrity = 'sha512-6HrPqAvK+lZElIZ4mZ64fyxIBTsaX5zAFZg2V/2WT+iKPrFzTzvx6QAsLW2OaLwobhMYBog/+bvmIEEGXi0p1w==';
         
         script.onload = () => {
           console.log('✅ Chart.js chargé avec succès');
-          // Vérifier que Chart est maintenant disponible
           if (typeof Chart !== 'undefined') {
             console.log('🎯 Chart.js disponible:', Chart);
+            this.chartJsLoaded = true;
             resolve();
           } else {
             console.error('❌ Chart.js chargé mais non disponible');
@@ -296,15 +368,13 @@ export default {
           reject(error);
         };
         
-        // Ajouter le script au head
         document.head.appendChild(script);
       });
     },
     
     createCharts() {
       try {
-        // Vérification stricte de Chart.js
-        if (typeof Chart === 'undefined') {
+        if (!this.chartJsLoaded || typeof Chart === 'undefined') {
           console.error('❌ Chart.js non disponible');
           return;
         }
@@ -312,9 +382,19 @@ export default {
         console.log('🎨 Création des graphiques...');
         console.log('📊 Mode actuel:', this.mode);
         
+        // Vérifier immédiatement les refs
+        console.log('🔍 Vérification immédiate des refs:', {
+          mainChart: !!this.$refs.mainChart,
+          pieChart: !!this.$refs.pieChart,
+          globalChart: !!this.$refs.globalChart,
+          classesChart: !!this.$refs.classesChart
+        });
+        
         if (this.mode === 'class') {
+          console.log('🎯 Création des graphiques de classe...');
           this.createClassCharts();
         } else {
+          console.log('🌍 Création des graphiques globaux...');
           this.createGlobalCharts();
         }
         
@@ -331,33 +411,55 @@ export default {
     },
     
     createClassCharts() {
+      console.log('📊 createClassCharts() appelée');
+      console.log('mainChart ref disponible:', !!this.$refs.mainChart);
+      console.log('pieChart ref disponible:', !!this.$refs.pieChart);
+      
       // Graphique principal de la classe
       if (this.$refs.mainChart) {
+        console.log('🎯 Création du graphique principal...');
         this.createMainChart();
+      } else {
+        console.error('❌ Référence mainChart non trouvée');
       }
       
       // Graphique camembert des comptes
       if (this.$refs.pieChart) {
+        console.log('🥧 Création du graphique en secteurs...');
         this.createPieChart();
+      } else {
+        console.error('❌ Référence pieChart non trouvée');
       }
     },
     
     createGlobalCharts() {
+      console.log('🌍 createGlobalCharts() appelée');
+      console.log('globalChart ref disponible:', !!this.$refs.globalChart);
+      console.log('classesChart ref disponible:', !!this.$refs.classesChart);
+      
       // Graphique global
       if (this.$refs.globalChart) {
+        console.log('🌍 Création du graphique global...');
         this.createGlobalChart();
+      } else {
+        console.error('❌ Référence globalChart non trouvée');
       }
       
       // Graphique répartition classes
       if (this.$refs.classesChart) {
+        console.log('📊 Création du graphique des classes...');
         this.createClassesChart();
+      } else {
+        console.error('❌ Référence classesChart non trouvée');
       }
     },
     
     createMainChart() {
       try {
+        console.log('🎯 createMainChart() - Début');
+        
         if (!this.$refs.mainChart) {
-          console.warn('⚠️ Référence mainChart non trouvée');
+          console.error('❌ Référence mainChart non trouvée');
           return;
         }
         
@@ -366,14 +468,24 @@ export default {
           return;
         }
         
+        console.log('📊 Element mainChart:', this.$refs.mainChart);
+        
         const ctx = this.$refs.mainChart.getContext('2d');
         if (!ctx) {
           console.error('❌ Impossible d\'obtenir le contexte 2D');
           return;
         }
         
+        console.log('✅ Contexte 2D obtenu:', ctx);
+        
         const data = this.generateEvolutionData();
         console.log('📈 Données générées pour mainChart:', data);
+        
+        // Vérifier que nous avons des données valides
+        if (!data.dates || data.dates.length === 0) {
+          console.error('❌ Pas de données pour le graphique');
+          return;
+        }
         
         const config = {
           type: this.chartType,
@@ -412,27 +524,34 @@ export default {
           options: this.getChartOptions()
         };
         
+        console.log('⚙️ Configuration du graphique:', config);
+        
         // Détruire le graphique existant
         this.destroyChart('mainChart');
         
         // Créer le nouveau graphique
+        console.log('🔨 Création du graphique avec new Chart()...');
         this.charts.mainChart = new Chart(ctx, config);
-        console.log('✅ MainChart créé avec succès');
+        console.log('✅ MainChart créé avec succès:', this.charts.mainChart);
         
       } catch (error) {
         console.error('❌ Erreur création mainChart:', error);
+        console.error('Stack trace:', error.stack);
       }
     },
     
     createPieChart() {
       try {
+        console.log('🥧 createPieChart() - Début');
+        
         if (!this.$refs.pieChart) {
-          console.warn('⚠️ Référence pieChart non trouvée');
+          console.error('❌ Référence pieChart non trouvée');
           return;
         }
         
         if (!this.classData || !this.classData.accounts) {
           console.warn('⚠️ Données de classe non disponibles pour pieChart');
+          console.log('classData:', this.classData);
           return;
         }
         
@@ -445,13 +564,21 @@ export default {
         const accounts = this.classData.accounts;
         
         console.log('🥧 Création pieChart avec', accounts.length, 'comptes');
+        console.log('📊 Données des comptes:', accounts);
+        
+        // Vérifier qu'on a des données valides
+        const validAccounts = accounts.filter(acc => acc.balance && typeof acc.balance.balance === 'number');
+        if (validAccounts.length === 0) {
+          console.warn('⚠️ Aucun compte avec des données valides');
+          return;
+        }
         
         const config = {
           type: 'doughnut',
           data: {
-            labels: accounts.map(acc => acc.Value),
+            labels: validAccounts.map(acc => acc.Value),
             datasets: [{
-              data: accounts.map(acc => Math.abs(acc.balance.balance || 0)),
+              data: validAccounts.map(acc => Math.abs(acc.balance.balance || 0)),
               backgroundColor: [
                 '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6',
                 '#06b6d4', '#ef4444', '#22c55e', '#6b7280'
@@ -484,12 +611,16 @@ export default {
           }
         };
         
+        console.log('⚙️ Configuration pieChart:', config);
+        
         this.destroyChart('pieChart');
+        console.log('🔨 Création du pieChart avec new Chart()...');
         this.charts.pieChart = new Chart(ctx, config);
-        console.log('✅ PieChart créé avec succès');
+        console.log('✅ PieChart créé avec succès:', this.charts.pieChart);
         
       } catch (error) {
         console.error('❌ Erreur création pieChart:', error);
+        console.error('Stack trace:', error.stack);
       }
     },
     
@@ -808,6 +939,46 @@ export default {
         '5': '💰', '6': '📉', '7': '📈', '8': '⚙️'
       };
       return icons[classNumber] || '📊';
+    },
+
+    // Méthode de debug pour vérifier l'état
+    debugChartState() {
+      console.log('🔍 État actuel des graphiques:');
+      console.log('- Mode:', this.mode);
+      console.log('- ClassData:', this.classData);
+      console.log('- AllClassData:', this.allClassData);
+      console.log('- Charts créés:', Object.keys(this.charts));
+      console.log('- Refs disponibles:', {
+        mainChart: !!this.$refs.mainChart,
+        pieChart: !!this.$refs.pieChart,
+        globalChart: !!this.$refs.globalChart,
+        classesChart: !!this.$refs.classesChart
+      });
+      console.log('- Chart.js disponible:', this.chartJsLoaded);
+      console.log('- Loading état:', this.loading);
+    },
+
+    // Méthode pour forcer la recréation des graphiques
+    async forceRecreateCharts() {
+      console.log('🔄 Recréation forcée des graphiques...');
+      this.destroyCharts();
+      
+      console.log('🔍 État des refs avant recréation:', {
+        mainChart: !!this.$refs.mainChart,
+        pieChart: !!this.$refs.pieChart,
+        globalChart: !!this.$refs.globalChart,
+        classesChart: !!this.$refs.classesChart
+      });
+      
+      // Attendre que le DOM soit prêt
+      const domReady = await this.waitForDOM();
+      
+      if (domReady || this.$refs.mainChart || this.$refs.pieChart) {
+        console.log('🎯 DOM disponible, recréation des graphiques...');
+        this.createCharts();
+      } else {
+        console.error('❌ Impossible de recréer - refs non disponibles');
+      }
     }
   }
 };
@@ -1289,94 +1460,5 @@ export default {
 
 .chart-container.loaded::before {
   display: none;
-}
-
-/* Error State */
-.error-state {
-  text-align: center;
-  padding: 3rem;
-  color: #64748b;
-}
-
-.error-icon {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-}
-
-.error-message {
-  font-size: 1.1rem;
-  margin-bottom: 1rem;
-  color: #374151;
-}
-
-.error-details {
-  font-size: 0.9rem;
-  color: #64748b;
-}
-
-/* Empty State */
-.empty-state {
-  text-align: center;
-  padding: 3rem;
-  color: #64748b;
-  background: #f8fafc;
-  border-radius: 12px;
-  border: 2px dashed #e2e8f0;
-}
-
-.empty-state h3 {
-  color: #374151;
-  margin-bottom: 0.5rem;
-}
-
-/* Accessibility */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation: none !important;
-    transition: none !important;
-  }
-}
-
-/* High Contrast Mode */
-@media (prefers-contrast: high) {
-  .chart-card,
-  .controls-card,
-  .stats-card {
-    border: 2px solid #000;
-  }
-  
-  .color-box {
-    border: 1px solid #000;
-  }
-}
-
-/* Dark Mode Support */
-@media (prefers-color-scheme: dark) {
-  .chart-card,
-  .controls-card,
-  .stats-card {
-    background: #1e293b;
-    color: #f1f5f9;
-  }
-  
-  .chart-container {
-    background: #0f172a;
-  }
-  
-  .stat-box {
-    background: #0f172a;
-    border-color: #334155;
-  }
-  
-  .control-select {
-    background: #0f172a;
-    color: #f1f5f9;
-    border-color: #334155;
-  }
-  
-  .period-badge {
-    background: #334155;
-    color: #f1f5f9;
-  }
 }
 </style>
