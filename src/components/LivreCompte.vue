@@ -134,13 +134,6 @@
           </button>
         </div>
       </div>
-      <button @click="valider" class="validate-button" :disabled="!isMappingValid">
-          <i class="fas fa-check-circle button-icon"></i>
-          Graphique Compte
-        </button>
-  
-    
-
       <div class="table-card">
         <div class="table-wrapper">
           <table class="modern-table" id="transactions-table">

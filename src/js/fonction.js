@@ -24,7 +24,7 @@ export async function getIDempiereModelsWhereSelect(token, nomTable, colonneFilt
   return await response.json();
 }
 
-export async function getIDempiereModelsWhereid(token,Nomtable,colonne,valeur) {
+export async function getIDempiereModelsWhereid(token,Nomtable,colonne,valeur) {  
 
   // const colonneajuste=colonne.includes("_id") ? ${colonne}/id : colonne;
   const response = await fetch(`/api/v1/models/${Nomtable}?$filter=${colonne} eq ${valeur}`, {
@@ -220,4 +220,26 @@ export async function deleteRecord(token, tablename, id) {
   }
 
   return { success: true, message: "Enregistrement supprimé avec succès" };
+}
+
+export async function updateIDempiereModel(token, tablename, id, data) {
+  if (!token) {
+    throw new Error("Token expiré ou manquant. Veuillez vous reconnecter.");
+  }
+
+  const response = await fetch(`/api/v1/models/${tablename}/${id}`, {
+    method: "PUT", // ou "PATCH" selon l'API iDempiere
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(data)
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || "Erreur lors de la mise à jour de l'enregistrement");
+  }
+
+  return await response.json();
 }

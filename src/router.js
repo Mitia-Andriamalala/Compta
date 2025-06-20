@@ -10,8 +10,9 @@ import FinancialDetail from './components/FinancialDetail.vue'
 import Rapport from './components/Rapport.vue'
 import FactureList from './components/FactureList.vue'
 import FactureCreation from './components/FactureCreation.vue'
-import AccountingEntries from './components/AccountingEntries.vue' // NOUVEAU composant
-import Graphiques from './components/Graphiques.vue' // NOUVEAU composant pour les graphiques
+import AccountingEntries from './components/AccountingEntries.vue'
+import Graphiques from './components/Graphiques.vue'
+import EditAccountingData from './components/EditAccountingData.vue' // NOUVEAU composant d'édition
 
 const routes = [
   {
@@ -49,7 +50,37 @@ const routes = [
       description: 'Consultez les écritures comptables détaillées'
     }
   },
-  // NOUVELLE ROUTE pour la saisie d'écritures comptables
+  // NOUVELLE ROUTE pour l'édition des données comptables
+  {
+    path: '/edition-donnees-comptables',
+    name: 'EditAccountingData',
+    component: EditAccountingData,
+    meta: { 
+      requiresAuth: true,
+      title: 'Édition des Données Comptables',
+      description: 'Modifiez directement les journaux, comptes et business partners dans iDempiere',
+      icon: '✏️',
+      category: 'administration'
+    }
+  },
+  // Routes alternatives pour l'édition comptable
+  {
+    path: '/modifier-donnees',
+    redirect: '/edition-donnees-comptables'
+  },
+  {
+    path: '/edit-accounting',
+    redirect: '/edition-donnees-comptables'
+  },
+  {
+    path: '/admin-comptable',
+    redirect: '/edition-donnees-comptables'
+  },
+  {
+    path: '/gestion-donnees',
+    redirect: '/edition-donnees-comptables'
+  },
+  // ROUTE pour la saisie d'écritures comptables
   {
     path: '/ecritures-comptables',
     name: 'AccountingEntries',
@@ -310,6 +341,11 @@ router.beforeEach((to, from, next) => {
       pageTitle = 'Plan Comptable - Gestion des Comptes'
     }
     
+    // Personnaliser le titre pour l'édition des données
+    if (to.name === 'EditAccountingData') {
+      pageTitle = 'Édition Données Comptables - Administration'
+    }
+    
     document.title = `${pageTitle} - Système Comptable`
   } else {
     document.title = 'Système Comptable'
@@ -340,6 +376,12 @@ router.beforeEach((to, from, next) => {
       mode: to.meta.defaultMode || 'full',
       fromPage: from.name
     })
+  }
+
+  // Log spécial pour l'édition des données comptables
+  if (to.name === 'EditAccountingData') {
+    console.log(`✏️ Accès module édition données comptables depuis:`, from.name)
+    console.log(`🔧 Mode administration activé pour:`, sessionStorage.getItem('userId'))
   }
 
   // Log spécial pour les graphiques
@@ -419,6 +461,24 @@ router.afterEach((to, from) => {
           timestamp: new Date().toISOString(),
           fromPage: from.name
         })
+      }
+    }
+
+    // Log spécifique pour l'administration des données
+    if (to.meta.category === 'administration') {
+      console.log(`🔧 Accès module administration: ${to.meta.title}`)
+      
+      // Pour l'édition des données comptables
+      if (to.name === 'EditAccountingData') {
+        console.log(`✏️ Module édition données comptables consulté:`, {
+          timestamp: new Date().toISOString(),
+          fromPage: from.name,
+          userId: userId,
+          action: 'access_edit_module'
+        })
+        
+        // Log de sécurité pour l'accès aux fonctions d'édition
+        console.warn(`🚨 AUDIT: Accès module d'édition par utilisateur ${userId} depuis ${from.name}`)
       }
     }
 

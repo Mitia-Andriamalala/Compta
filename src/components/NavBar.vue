@@ -73,6 +73,44 @@
           </transition>
         </div>
 
+        <!-- Dropdown pour Administration -->
+        <div class="nav-dropdown" @mouseenter="showAdministrationMenu" @mouseleave="hideAdministrationMenu">
+          <div class="nav-link dropdown-trigger" :class="{ 'active': isAdministrationActive }">
+            <div class="nav-link-content">
+              <span class="link-icon">⚙️</span>
+              <span class="link-text">Administration</span>
+              <span class="dropdown-arrow" :class="{ 'rotate': isAdministrationMenuOpen }">▼</span>
+              <div class="link-underline"></div>
+            </div>
+          </div>
+          
+          <transition name="dropdown-fade">
+            <div class="dropdown-menu" v-if="isAdministrationMenuOpen">
+              <router-link to="/edition-donnees-comptables" class="dropdown-item admin-item" @click="closeMobileMenu">
+                <span class="dropdown-icon">✏️</span>
+                <div class="dropdown-content">
+                  <span class="dropdown-title">Édition Données Comptables</span>
+                  <span class="dropdown-desc">Modifier journaux, comptes et BP</span>
+                </div>
+              </router-link>
+              <router-link to="/import" class="dropdown-item" @click="closeMobileMenu">
+                <span class="dropdown-icon">📤</span>
+                <div class="dropdown-content">
+                  <span class="dropdown-title">Import CSV</span>
+                  <span class="dropdown-desc">Importer des données externes</span>
+                </div>
+              </router-link>
+              <router-link to="/graphiques" class="dropdown-item" @click="closeMobileMenu">
+                <span class="dropdown-icon">📊</span>
+                <div class="dropdown-content">
+                  <span class="dropdown-title">Graphiques & Analytics</span>
+                  <span class="dropdown-desc">Visualisations avancées</span>
+                </div>
+              </router-link>
+            </div>
+          </transition>
+        </div>
+
         <!-- Dropdown pour Facturation -->
         <div class="nav-dropdown" @mouseenter="showFacturationMenu" @mouseleave="hideFacturationMenu">
           <div class="nav-link dropdown-trigger" :class="{ 'active': isFacturationActive }">
@@ -190,6 +228,27 @@
             <span class="link-text">Livre de Compte</span>
           </router-link>
         </div>
+
+        <!-- Section Administration mobile -->
+        <div class="mobile-section">
+          <div class="mobile-section-title admin-section">
+            <span class="mobile-icon">⚙️</span>
+            <span>Administration</span>
+          </div>
+          <router-link to="/edition-donnees-comptables" class="mobile-nav-link sub-link admin-mobile-item" @click="toggleMobileMenu">
+            <span class="mobile-icon">✏️</span>
+            <span class="link-text">Édition Données Comptables</span>
+            <span class="admin-badge">🔧</span>
+          </router-link>
+          <router-link to="/import" class="mobile-nav-link sub-link" @click="toggleMobileMenu">
+            <span class="mobile-icon">📤</span>
+            <span class="link-text">Import CSV</span>
+          </router-link>
+          <router-link to="/graphiques" class="mobile-nav-link sub-link" @click="toggleMobileMenu">
+            <span class="mobile-icon">📊</span>
+            <span class="link-text">Graphiques & Analytics</span>
+          </router-link>
+        </div>
         
         <!-- Section Facturation mobile -->
         <div class="mobile-section">
@@ -243,11 +302,12 @@ export default {
       isUserMenuOpen: false,
       isFacturationMenuOpen: false,
       isComptabiliteMenuOpen: false,
+      isAdministrationMenuOpen: false,
       facturationMenuTimeout: null,
       comptabiliteMenuTimeout: null,
+      administrationMenuTimeout: null,
       navLinks: [
         { path: '/', icon: '🏠', text: 'Accueil', notification: 0 },
-        { path: '/import', icon: '📤', text: 'Import CSV', notification: 2 },
         { path: '/financial-dashboard', icon: '📈', text: 'Tableau de bord', notification: 0 },
         { path: '/rapports', icon: '📊', text: 'Rapports', notification: 5 }
       ]
@@ -264,6 +324,10 @@ export default {
     isComptabiliteActive() {
       const comptabiliteRoutes = ['/balance', '/livreCompte', '/tous-les-comptes', '/livres-compte', '/vue-ensemble-comptes', '/dashboard-comptes', '/ecritures-comptables'];
       return comptabiliteRoutes.includes(this.$route.path);
+    },
+    isAdministrationActive() {
+      const administrationRoutes = ['/edition-donnees-comptables', '/modifier-donnees', '/edit-accounting', '/admin-comptable', '/gestion-donnees', '/import', '/graphiques', '/analytics', '/visualisations', '/charts'];
+      return administrationRoutes.includes(this.$route.path);
     }
   },
   methods: {
@@ -278,6 +342,7 @@ export default {
       this.isUserMenuOpen = false;
       this.isFacturationMenuOpen = false;
       this.isComptabiliteMenuOpen = false;
+      this.isAdministrationMenuOpen = false;
     },
     toggleUserMenu() {
       this.isUserMenuOpen = !this.isUserMenuOpen;
@@ -305,6 +370,17 @@ export default {
     hideComptabiliteMenu() {
       this.comptabiliteMenuTimeout = setTimeout(() => {
         this.isComptabiliteMenuOpen = false;
+      }, 200);
+    },
+    showAdministrationMenu() {
+      if (this.administrationMenuTimeout) {
+        clearTimeout(this.administrationMenuTimeout);
+      }
+      this.isAdministrationMenuOpen = true;
+    },
+    hideAdministrationMenu() {
+      this.administrationMenuTimeout = setTimeout(() => {
+        this.isAdministrationMenuOpen = false;
       }, 200);
     },
     logout() {
@@ -659,6 +735,19 @@ export default {
   animation: pulse 2s infinite;
 }
 
+/* Badge "admin" pour l'édition des données */
+.admin-item .dropdown-title::after {
+  content: '🔧 Admin';
+  font-size: 0.7rem;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+  padding: 0.15rem 0.4rem;
+  border-radius: 12px;
+  margin-left: 0.5rem;
+  font-weight: 700;
+  animation: adminPulse 2s infinite;
+}
+
 @keyframes pulse {
   0%, 100% {
     transform: scale(1);
@@ -670,8 +759,22 @@ export default {
   }
 }
 
+@keyframes adminPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+    box-shadow: 0 0 5px rgba(245, 158, 11, 0.3);
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.9;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+  }
+}
+
 /* Effet de brillance sur les éléments nouveaux */
-.new-item::before {
+.new-item::before,
+.admin-item::before {
   content: '';
   position: absolute;
   top: 0;
@@ -680,6 +783,10 @@ export default {
   height: 100%;
   background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.2), transparent);
   animation: shine 3s ease-in-out infinite;
+}
+
+.admin-item::before {
+  background: linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.2), transparent);
 }
 
 @keyframes shine {
@@ -913,6 +1020,7 @@ export default {
   height: 3px;
   background: #374151;
   border-radius: 2px;
+  transition: all 0.3s ease;
 }
 
 .mobile-menu-button.active .hamburger span:nth-child(1) {
@@ -1012,6 +1120,10 @@ export default {
   border-radius: 12px;
 }
 
+.admin-section {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
 .sub-link {
   padding-left: 3rem;
   font-size: 0.9rem;
@@ -1046,6 +1158,28 @@ export default {
   justify-content: center;
   font-size: 0.8rem;
   animation: pulse 2s infinite;
+}
+
+/* Badge pour l'élément admin mobile */
+.admin-mobile-item {
+  position: relative;
+}
+
+.admin-badge {
+  position: absolute;
+  top: 50%;
+  right: 1rem;
+  transform: translateY(-50%);
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  animation: adminPulse 2s infinite;
 }
 
 /* Mobile User Section */
@@ -1187,6 +1321,7 @@ export default {
 .nav-link:nth-child(3) { animation-delay: 0.2s; }
 .nav-link:nth-child(4) { animation-delay: 0.3s; }
 .nav-link:nth-child(5) { animation-delay: 0.4s; }
+.nav-link:nth-child(6) { animation-delay: 0.5s; }
 
 /* Animation supplémentaire pour les dropdowns */
 @keyframes dropdownSlide {
@@ -1213,7 +1348,7 @@ export default {
   }
 }
 
-/* Style pour les états actifs des éléments de facturation et comptabilité */
+/* Style pour les états actifs des éléments de facturation, comptabilité et administration */
 .nav-dropdown .active .nav-link-content {
   color: #667eea;
   background: white;
@@ -1259,4 +1394,25 @@ export default {
 .dropdown-item:nth-child(2) { animation-delay: 0.2s; }
 .dropdown-item:nth-child(3) { animation-delay: 0.3s; }
 .dropdown-item:nth-child(4) { animation-delay: 0.4s; }
+
+/* Effet spécial pour la section Administration */
+.nav-dropdown:has(.admin-item) .nav-link-content {
+  position: relative;
+}
+
+.nav-dropdown:has(.admin-item) .nav-link-content:hover {
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+  border-color: #f59e0b;
+}
+
+/* Effet de sécurité pour les fonctions admin */
+.admin-item:hover {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.1));
+  border-left: 3px solid #f59e0b;
+}
+
+.admin-mobile-item:hover {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.1));
+  border-left: 4px solid #f59e0b;
+}
 </style>
